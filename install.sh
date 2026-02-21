@@ -296,17 +296,20 @@ info "Running database migrations..."
 php artisan migrate --force
 
 info "Creating super admin user..."
-HASHED_PASS=$(php -r "echo password_hash('${ADMIN_PASSWORD}', PASSWORD_BCRYPT);")
+HASHED_PASS=$(php -r 'echo password_hash($argv[1], PASSWORD_BCRYPT);' -- "$ADMIN_PASSWORD")
+SAFE_ADMIN_NAME="${ADMIN_NAME//\'/\'\'}"
+SAFE_ADMIN_EMAIL="${ADMIN_EMAIL//\'/\'\'}"
+SAFE_HASHED_PASS="${HASHED_PASS//\'/\'\'}"
 mysql -uroot "$DB_DATABASE" <<SQL
 INSERT INTO users (name, email, password, is_admin, is_super_admin, email_verified_at, created_at, updated_at)
-SELECT '${ADMIN_NAME}', '${ADMIN_EMAIL}', '${HASHED_PASS}', 1, 1, NOW(), NOW(), NOW()
+SELECT '${SAFE_ADMIN_NAME}', '${SAFE_ADMIN_EMAIL}', '${SAFE_HASHED_PASS}', 1, 1, NOW(), NOW(), NOW()
 FROM dual
-WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = '${ADMIN_EMAIL}');
+WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = '${SAFE_ADMIN_EMAIL}');
 SQL
 success "Super admin ready."
 
 info "Installing npm dependencies..."
-npm ci --silent
+npm install --silent
 
 info "Building frontend assets..."
 npm run build
@@ -325,7 +328,7 @@ mkdir -p storage/app/public \
 chown -R "${WEB_USER}:${WEB_USER}" .
 chmod -R 755 .
 chmod -R 775 storage bootstrap/cache
-# Protect .env – contains DB credentials and app key; no world access
+# Protect .env -- contains DB credentials and app key; no world access
 chmod 640 .env
 
 info "Creating public storage symlink..."
@@ -334,11 +337,21 @@ php artisan storage:link
 success "Laravel application configured."
 
 # ─── Done ─────────────────────────────────────────────────────────────────────
+# Detect the server's IP address (prefer the first non-loopback IPv4 address)
+SERVER_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+SERVER_IP="${SERVER_IP:-127.0.0.1}"
+
 echo
 echo -e "${GREEN}${BOLD}Installation complete!${RESET}"
 echo -e "  App URL    : ${CYAN}${APP_URL}${RESET}"
+echo -e "  Server IP  : ${CYAN}http://${SERVER_IP}${RESET}"
 echo -e "  App dir    : ${INSTALL_DIR}"
 echo -e "  PHP        : ${PHP_VER}"
 echo -e "  Database   : ${DB_DATABASE} @ 127.0.0.1"
 echo -e "  Admin      : ${CYAN}${ADMIN_EMAIL}${RESET} (super admin)"
+echo
+echo -e "  ${BOLD}Visit your golf league at:${RESET}"
+echo -e "    ${CYAN}${APP_URL}${RESET}"
+[[ "$SERVER_NAME" != "_" ]] && echo -e "    ${CYAN}http://${SERVER_NAME}${RESET}"
+[[ "$SERVER_IP" != "127.0.0.1" ]] && echo -e "    ${CYAN}http://${SERVER_IP}${RESET}"
 echo
