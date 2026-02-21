@@ -137,6 +137,10 @@ apt-get install -y -qq \
 info "Installing nginx, MySQL, and utilities..."
 apt-get install -y -qq nginx mariadb-server curl unzip git
 
+# Stop nginx immediately – it auto-starts with the default site after install.
+# We'll configure and start it properly at the end of the script.
+systemctl stop nginx &>/dev/null || true
+
 # Node.js via NodeSource (LTS)
 if ! command -v node &>/dev/null; then
     info "Installing Node.js LTS..."
@@ -325,10 +329,14 @@ for site in /etc/nginx/sites-enabled/*; do
     [[ -e "$site" ]] && rm -f "$site" && info "Removed $(basename "$site") from sites-enabled."
 done
 
+# Also remove the default site config to prevent it from ever being re-enabled
+rm -f /etc/nginx/sites-available/default
+
 ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/golf
 
-nginx -t && systemctl enable --now nginx && systemctl reload nginx
-success "Nginx configured and reloaded."
+# Full restart (not reload) to ensure clean slate on fresh installs
+nginx -t && systemctl enable --now nginx && systemctl restart nginx
+success "Nginx configured and restarted."
 
 # ─── Done ─────────────────────────────────────────────────────────────────────
 echo
