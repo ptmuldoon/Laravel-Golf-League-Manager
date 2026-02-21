@@ -2,8 +2,11 @@
 set -euo pipefail
 
 # ─── Usage ───────────────────────────────────────────────────────────────────
-# Option 1 – Run directly via curl (no git clone needed):
-#   curl -fsSL https://raw.githubusercontent.com/ptmuldoon/Laravel-Golf/main/install.sh | sudo bash
+# Option 1 – Run directly via curl (private repo – requires a GitHub PAT):
+#   export GITHUB_TOKEN="ghp_your_token_here"
+#   curl -fsSL -H "Authorization: token $GITHUB_TOKEN" \
+#     https://raw.githubusercontent.com/ptmuldoon/Laravel-Golf/main/install.sh \
+#     | sudo GITHUB_TOKEN="$GITHUB_TOKEN" bash
 #
 # Option 2 – Clone first, then run:
 #   git clone https://github.com/ptmuldoon/Laravel-Golf.git
@@ -11,6 +14,7 @@ set -euo pipefail
 # ─────────────────────────────────────────────────────────────────────────────
 
 REPO_URL="https://github.com/ptmuldoon/Laravel-Golf.git"
+GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 
 # ─── Colours ──────────────────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
@@ -52,6 +56,14 @@ if $NEED_CLONE; then
     step "Install location"
     prompt -rp "Install directory [/var/www/html/golf]: " INSTALL_DIR
     INSTALL_DIR="${INSTALL_DIR:-/var/www/html/golf}"
+
+    # Prompt for GitHub token if not set (needed for private repo)
+    if [[ -z "$GITHUB_TOKEN" ]]; then
+        warn "Repository is private. A GitHub Personal Access Token (PAT) is required."
+        prompt -rsp "GitHub token: " GITHUB_TOKEN
+        echo
+        [[ -z "$GITHUB_TOKEN" ]] && error "GitHub token cannot be empty for private repo access."
+    fi
 fi
 
 # ─── Gather configuration ─────────────────────────────────────────────────────
@@ -155,13 +167,21 @@ success "System packages installed (PHP ${PHP_VER}, nginx, MySQL, Node $(node -v
 # ─── Clone repository (if needed) ────────────────────────────────────────────
 if $NEED_CLONE; then
     step "Cloning repository"
+
+    # Use GITHUB_TOKEN for private repo access when available
+    if [[ -n "$GITHUB_TOKEN" ]]; then
+        CLONE_URL="https://${GITHUB_TOKEN}@github.com/ptmuldoon/Laravel-Golf.git"
+    else
+        CLONE_URL="$REPO_URL"
+    fi
+
     if [[ -d "$INSTALL_DIR" && -f "${INSTALL_DIR}/artisan" ]]; then
         warn "Directory ${INSTALL_DIR} already contains a Laravel project — pulling latest..."
         git -C "$INSTALL_DIR" pull --ff-only
     else
-        git clone "$REPO_URL" "$INSTALL_DIR"
+        git clone "$CLONE_URL" "$INSTALL_DIR"
     fi
-    # Remove .git for a clean production install
+    # Remove .git for a clean production install (also removes any embedded token)
     rm -rf "${INSTALL_DIR}/.git"
     success "Repository cloned to ${INSTALL_DIR}"
 fi
