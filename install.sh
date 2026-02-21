@@ -322,13 +322,12 @@ server {
 }
 NGINX
 
-ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/golf
+# Remove all existing sites so only the golf app is served on port 80
+for site in /etc/nginx/sites-enabled/*; do
+    [[ -e "$site" ]] && rm -f "$site" && info "Removed $(basename "$site") from sites-enabled."
+done
 
-# Remove the default nginx site if it would conflict on port 80
-if [[ -f /etc/nginx/sites-enabled/default ]]; then
-    rm -f /etc/nginx/sites-enabled/default
-    info "Removed default nginx site to free port 80."
-fi
+ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/golf
 
 nginx -t && systemctl enable --now nginx && systemctl reload nginx
 success "Nginx configured and reloaded."
