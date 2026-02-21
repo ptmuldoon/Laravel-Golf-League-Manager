@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# ─── Usage ───────────────────────────────────────────────────────────────────
+# Option 1 – Run directly via curl (no git clone needed):
+#   curl -fsSL https://raw.githubusercontent.com/ptmuldoon/Laravel-Golf/main/install.sh | sudo bash
+#
+# Option 2 – Clone first, then run:
+#   git clone https://github.com/ptmuldoon/Laravel-Golf.git
+#   cd Laravel-Golf && sudo bash install.sh
+# ─────────────────────────────────────────────────────────────────────────────
+
+REPO_URL="https://github.com/ptmuldoon/Laravel-Golf.git"
+
 # ─── Colours ──────────────────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 CYAN='\033[0;36m'; BOLD='\033[1m'; RESET='\033[0m'
@@ -11,49 +22,70 @@ warn()    { echo -e "${YELLOW}[WARN]${RESET}  $*"; }
 error()   { echo -e "${RED}[ERROR]${RESET} $*" >&2; exit 1; }
 step()    { echo -e "\n${BOLD}── $* ──${RESET}"; }
 
+# read wrapper that always reads from the terminal (works with curl | bash)
+prompt() { read "$@" < /dev/tty; }
+
 # ─── Must run as root ─────────────────────────────────────────────────────────
-[[ $EUID -ne 0 ]] && error "Please run as root: sudo bash install.sh"
+[[ $EUID -ne 0 ]] && error "Please run as root:  curl -fsSL <url> | sudo bash"
 
 # ─── Detect distro ────────────────────────────────────────────────────────────
 if ! command -v apt-get &>/dev/null; then
     error "This script requires a Debian/Ubuntu-based system (apt-get not found)."
 fi
 
-INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WEB_USER="www-data"
+
+# ─── Determine install directory ─────────────────────────────────────────────
+# If we're already inside a clone of the repo, use this directory.
+# Otherwise we'll clone the repo into the chosen directory.
+NEED_CLONE=true
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-/dev/null}")" 2>/dev/null && pwd || echo "")"
+
+if [[ -n "$SCRIPT_DIR" && -f "${SCRIPT_DIR}/artisan" && -f "${SCRIPT_DIR}/.env.example" ]]; then
+    # Running from inside an existing clone
+    INSTALL_DIR="$SCRIPT_DIR"
+    NEED_CLONE=false
+    info "Detected existing project in ${INSTALL_DIR}"
+fi
+
+if $NEED_CLONE; then
+    step "Install location"
+    prompt -rp "Install directory [/var/www/html/golf]: " INSTALL_DIR
+    INSTALL_DIR="${INSTALL_DIR:-/var/www/html/golf}"
+fi
 
 # ─── Gather configuration ─────────────────────────────────────────────────────
 step "Configuration"
 
-read -rp "App name            [Tuesday Golf League]: " APP_NAME
+prompt -rp "App name            [Tuesday Golf League]: " APP_NAME
 APP_NAME="${APP_NAME:-Tuesday Golf League}"
 
-read -rp "App URL             [http://localhost]: " APP_URL
+prompt -rp "App URL             [http://localhost]: " APP_URL
 APP_URL="${APP_URL:-http://localhost}"
 
-read -rp "Nginx server_name   [_]: " SERVER_NAME
+prompt -rp "Nginx server_name   [_]: " SERVER_NAME
 SERVER_NAME="${SERVER_NAME:-_}"
 
-read -rp "MySQL root password : " MYSQL_ROOT_PASS
+prompt -rp "MySQL root password : " MYSQL_ROOT_PASS
 [[ -z "$MYSQL_ROOT_PASS" ]] && error "MySQL root password cannot be empty."
 
-read -rp "DB name             [golf]: " DB_DATABASE
+prompt -rp "DB name             [golf]: " DB_DATABASE
 DB_DATABASE="${DB_DATABASE:-golf}"
 
-read -rp "DB user             [golf_user]: " DB_USERNAME
+prompt -rp "DB user             [golf_user]: " DB_USERNAME
 DB_USERNAME="${DB_USERNAME:-golf_user}"
 
-read -rsp "DB password         : " DB_PASSWORD
+prompt -rsp "DB password         : " DB_PASSWORD
 echo
 [[ -z "$DB_PASSWORD" ]] && error "DB password cannot be empty."
 
-read -rp "Admin name          [Admin]: " ADMIN_NAME
+prompt -rp "Admin name          [Admin]: " ADMIN_NAME
 ADMIN_NAME="${ADMIN_NAME:-Admin}"
 
-read -rp "Admin email         [admin@golf.com]: " ADMIN_EMAIL
+prompt -rp "Admin email         [admin@golf.com]: " ADMIN_EMAIL
 ADMIN_EMAIL="${ADMIN_EMAIL:-admin@golf.com}"
 
-read -rsp "Admin password      : " ADMIN_PASSWORD
+prompt -rsp "Admin password      : " ADMIN_PASSWORD
 echo
 [[ -z "$ADMIN_PASSWORD" ]] && error "Admin password cannot be empty."
 
@@ -64,7 +96,7 @@ info "Nginx server_name : $SERVER_NAME"
 info "Database          : $DB_DATABASE (user: $DB_USERNAME)"
 info "Admin email       : $ADMIN_EMAIL"
 echo
-read -rp "Proceed? [y/N]: " CONFIRM
+prompt -rp "Proceed? [y/N]: " CONFIRM
 [[ "${CONFIRM,,}" != "y" ]] && echo "Aborted." && exit 0
 
 # ─── System packages ──────────────────────────────────────────────────────────
@@ -119,6 +151,20 @@ if ! command -v composer &>/dev/null; then
 fi
 
 success "System packages installed (PHP ${PHP_VER}, nginx, MySQL, Node $(node -v), Composer $(composer --version --no-ansi 2>/dev/null | awk '{print $3}'))"
+
+# ─── Clone repository (if needed) ────────────────────────────────────────────
+if $NEED_CLONE; then
+    step "Cloning repository"
+    if [[ -d "$INSTALL_DIR" && -f "${INSTALL_DIR}/artisan" ]]; then
+        warn "Directory ${INSTALL_DIR} already contains a Laravel project — pulling latest..."
+        git -C "$INSTALL_DIR" pull --ff-only
+    else
+        git clone "$REPO_URL" "$INSTALL_DIR"
+    fi
+    # Remove .git for a clean production install
+    rm -rf "${INSTALL_DIR}/.git"
+    success "Repository cloned to ${INSTALL_DIR}"
+fi
 
 # ─── MySQL setup ──────────────────────────────────────────────────────────────
 step "Configuring MySQL"
