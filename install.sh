@@ -115,22 +115,13 @@ prompt -rp "Proceed? [y/N]: " CONFIRM
 step "Installing system packages"
 
 apt-get update -qq
+apt-get install -y -qq software-properties-common
 
-# PHP (prefer 8.4, fall back to whatever is available)
-PHP_VER=""
-for v in 8.4 8.3 8.2; do
-    if apt-cache show "php${v}" &>/dev/null 2>&1; then
-        PHP_VER="$v"; break
-    fi
-done
+info "Adding ondrej/php PPA for PHP 8.4..."
+add-apt-repository -y ppa:ondrej/php
+apt-get update -qq
 
-if [[ -z "$PHP_VER" ]]; then
-    info "Adding ondrej/php PPA for PHP 8.4..."
-    apt-get install -y -qq software-properties-common
-    add-apt-repository -y ppa:ondrej/php
-    apt-get update -qq
-    PHP_VER="8.4"
-fi
+PHP_VER="8.4"
 
 info "Installing PHP ${PHP_VER} and extensions..."
 apt-get install -y -qq \
