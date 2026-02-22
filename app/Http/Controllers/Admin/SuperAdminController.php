@@ -3,11 +3,15 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\BackupEmail;
 use App\Models\SiteSetting;
 use App\Models\User;
+use App\Services\GoogleDriveService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -18,7 +22,22 @@ class SuperAdminController extends Controller
         $users = User::orderBy('name')->get();
         $currentTheme = SiteSetting::getTheme();
 
-        return view('admin.super', compact('users', 'currentTheme'));
+        $backupSettings = [
+            'enabled' => SiteSetting::get('backup_enabled', '0'),
+            'frequency' => SiteSetting::get('backup_frequency', 'daily'),
+            'time' => SiteSetting::get('backup_time', '02:00'),
+            'retention' => SiteSetting::get('backup_retention', '10'),
+            'email_enabled' => SiteSetting::get('backup_email_enabled', '0'),
+            'email_recipients' => SiteSetting::get('backup_email_recipients', ''),
+            'gdrive_enabled' => SiteSetting::get('backup_gdrive_enabled', '0'),
+            'gdrive_folder_id' => SiteSetting::get('backup_gdrive_folder_id', ''),
+            'gdrive_credentials_uploaded' => file_exists(storage_path('app/private/google/service-account.json')),
+            'gdrive_service_email' => $this->getServiceAccountEmail(),
+        ];
+
+        $backups = $this->getBackupFiles();
+
+        return view('admin.super', compact('users', 'currentTheme', 'backupSettings', 'backups'));
     }
 
     public function backup()
@@ -95,6 +114,99 @@ class SuperAdminController extends Controller
         return redirect()->route('admin.super.index')->with('success', 'Database restored successfully from ' . $file->getClientOriginalName());
     }
 
+    public function updateBackupSchedule(Request $request)
+    {
+        $validated = $request->validate([
+            'backup_enabled' => 'required|in:0,1',
+            'backup_frequency' => 'required|in:daily,weekly,monthly',
+            'backup_time' => 'required|date_format:H:i',
+            'backup_retention' => 'required|integer|min:1|max:50',
+        ]);
+
+        SiteSetting::set('backup_enabled', $validated['backup_enabled']);
+        SiteSetting::set('backup_frequency', $validated['backup_frequency']);
+        SiteSetting::set('backup_time', $validated['backup_time']);
+        SiteSetting::set('backup_retention', (string) $validated['backup_retention']);
+
+        return redirect()->route('admin.super.index')->with('success', 'Backup schedule settings saved.');
+    }
+
+    public function runBackupNow()
+    {
+        $exitCode = Artisan::call('backup:database');
+
+        if ($exitCode === 0) {
+            return redirect()->route('admin.super.index')->with('success', 'Backup created successfully.');
+        }
+
+        return redirect()->route('admin.super.index')->with('error', 'Backup failed. Check the server logs for details.');
+    }
+
+    public function downloadBackup($filename)
+    {
+        // Sanitize filename to prevent directory traversal
+        $filename = basename($filename);
+        $filepath = storage_path('app/backups/' . $filename);
+
+        if (!file_exists($filepath) || !str_ends_with($filename, '.sql')) {
+            return redirect()->route('admin.super.index')->with('error', 'Backup file not found.');
+        }
+
+        return response()->download($filepath, $filename, [
+            'Content-Type' => 'application/sql',
+        ]);
+    }
+
+    public function deleteBackup($filename)
+    {
+        // Sanitize filename to prevent directory traversal
+        $filename = basename($filename);
+        $filepath = storage_path('app/backups/' . $filename);
+
+        if (!file_exists($filepath) || !str_ends_with($filename, '.sql')) {
+            return redirect()->route('admin.super.index')->with('error', 'Backup file not found.');
+        }
+
+        unlink($filepath);
+
+        return redirect()->route('admin.super.index')->with('success', 'Backup file deleted.');
+    }
+
+    protected function getBackupFiles(): array
+    {
+        $backupDir = storage_path('app/backups');
+        if (!is_dir($backupDir)) {
+            return [];
+        }
+
+        $files = glob($backupDir . '/*.sql');
+        if (empty($files)) {
+            return [];
+        }
+
+        // Sort newest first
+        usort($files, fn($a, $b) => filemtime($b) - filemtime($a));
+
+        return array_map(function ($file) {
+            return [
+                'name' => basename($file),
+                'size' => $this->formatFileSize(filesize($file)),
+                'date' => date('M j, Y g:i A', filemtime($file)),
+            ];
+        }, $files);
+    }
+
+    protected function formatFileSize(int $bytes): string
+    {
+        if ($bytes >= 1048576) {
+            return round($bytes / 1048576, 1) . ' MB';
+        }
+        if ($bytes >= 1024) {
+            return round($bytes / 1024, 1) . ' KB';
+        }
+        return $bytes . ' B';
+    }
+
     public function updateUserRole(Request $request, $id)
     {
         $user = User::findOrFail($id);
@@ -141,6 +253,161 @@ class SuperAdminController extends Controller
 
         return redirect()->route('admin.super.index')
             ->with('success', 'Password for ' . $user->name . ' has been reset.');
+    }
+
+    public function updateBackupDelivery(Request $request)
+    {
+        $validated = $request->validate([
+            'backup_email_enabled' => 'required|in:0,1',
+            'backup_email_recipients' => 'nullable|string|max:1000',
+            'backup_gdrive_enabled' => 'required|in:0,1',
+            'backup_gdrive_folder_id' => 'nullable|string|max:255',
+        ]);
+
+        // Validate each email address if provided
+        if (!empty($validated['backup_email_recipients'])) {
+            $emails = array_map('trim', explode(',', $validated['backup_email_recipients']));
+            foreach ($emails as $email) {
+                if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    return redirect()->route('admin.super.index')
+                        ->with('error', "Invalid email address: {$email}");
+                }
+            }
+        }
+
+        // Prevent enabling Google Drive without credentials
+        if ($validated['backup_gdrive_enabled'] === '1'
+            && !file_exists(storage_path('app/private/google/service-account.json'))) {
+            return redirect()->route('admin.super.index')
+                ->with('error', 'Cannot enable Google Drive backup: no credentials uploaded.');
+        }
+
+        SiteSetting::set('backup_email_enabled', $validated['backup_email_enabled']);
+        SiteSetting::set('backup_email_recipients', $validated['backup_email_recipients'] ?? '');
+        SiteSetting::set('backup_gdrive_enabled', $validated['backup_gdrive_enabled']);
+        SiteSetting::set('backup_gdrive_folder_id', $validated['backup_gdrive_folder_id'] ?? '');
+
+        return redirect()->route('admin.super.index')
+            ->with('success', 'Backup delivery settings saved.');
+    }
+
+    public function testBackupEmail()
+    {
+        $recipients = SiteSetting::get('backup_email_recipients', '');
+        $emails = array_filter(array_map('trim', explode(',', $recipients)));
+
+        if (empty($emails)) {
+            return redirect()->route('admin.super.index')
+                ->with('error', 'No email recipients configured. Save delivery settings first.');
+        }
+
+        $backupDir = storage_path('app/backups');
+        $files = glob($backupDir . '/*_backup_*.sql');
+
+        if (empty($files)) {
+            return redirect()->route('admin.super.index')
+                ->with('error', 'No backup files exist. Run a backup first, then test email.');
+        }
+
+        usort($files, fn($a, $b) => filemtime($b) - filemtime($a));
+        $latestFile = $files[0];
+
+        try {
+            Mail::to($emails)->send(new BackupEmail($latestFile, basename($latestFile)));
+            return redirect()->route('admin.super.index')
+                ->with('success', 'Test email sent to: ' . implode(', ', $emails));
+        } catch (\Exception $e) {
+            return redirect()->route('admin.super.index')
+                ->with('error', 'Test email failed: ' . $e->getMessage());
+        }
+    }
+
+    public function uploadGdriveCredentials(Request $request)
+    {
+        $request->validate([
+            'gdrive_credentials' => 'required|file|max:50',
+        ]);
+
+        $file = $request->file('gdrive_credentials');
+
+        if (strtolower($file->getClientOriginalExtension()) !== 'json') {
+            return redirect()->route('admin.super.index')
+                ->with('error', 'Only .json files are accepted.');
+        }
+
+        $contents = file_get_contents($file->getRealPath());
+        $json = json_decode($contents, true);
+
+        if (!$json || !isset($json['type']) || $json['type'] !== 'service_account') {
+            return redirect()->route('admin.super.index')
+                ->with('error', 'Invalid file: must be a Google Service Account JSON key (type=service_account).');
+        }
+
+        if (!isset($json['client_email']) || !isset($json['private_key'])) {
+            return redirect()->route('admin.super.index')
+                ->with('error', 'Invalid service account file: missing client_email or private_key.');
+        }
+
+        $dir = storage_path('app/private/google');
+        if (!is_dir($dir)) {
+            mkdir($dir, 0700, true);
+        }
+
+        file_put_contents($dir . '/service-account.json', $contents);
+        chmod($dir . '/service-account.json', 0600);
+
+        return redirect()->route('admin.super.index')
+            ->with('success', 'Google Drive credentials uploaded. Service account: ' . $json['client_email']);
+    }
+
+    public function deleteGdriveCredentials()
+    {
+        SiteSetting::set('backup_gdrive_enabled', '0');
+
+        $path = storage_path('app/private/google/service-account.json');
+        if (file_exists($path)) {
+            unlink($path);
+        }
+
+        return redirect()->route('admin.super.index')
+            ->with('success', 'Google Drive credentials removed and backup disabled.');
+    }
+
+    public function testGdriveConnection()
+    {
+        $folderId = SiteSetting::get('backup_gdrive_folder_id', '');
+
+        if (empty($folderId)) {
+            return redirect()->route('admin.super.index')
+                ->with('error', 'No Google Drive folder ID configured. Save delivery settings first.');
+        }
+
+        try {
+            $service = new GoogleDriveService();
+            $result = $service->testConnection($folderId);
+
+            if ($result['success']) {
+                return redirect()->route('admin.super.index')
+                    ->with('success', 'Google Drive connection successful! ' . $result['message']);
+            }
+
+            return redirect()->route('admin.super.index')
+                ->with('error', 'Google Drive test failed: ' . $result['message']);
+        } catch (\Exception $e) {
+            return redirect()->route('admin.super.index')
+                ->with('error', 'Google Drive test failed: ' . $e->getMessage());
+        }
+    }
+
+    protected function getServiceAccountEmail(): ?string
+    {
+        $path = storage_path('app/private/google/service-account.json');
+        if (!file_exists($path)) {
+            return null;
+        }
+
+        $json = json_decode(file_get_contents($path), true);
+        return $json['client_email'] ?? null;
     }
 
     public function updateTheme(Request $request)

@@ -7,7 +7,12 @@
       "Bash(systemctl restart:*)",
       "Bash(service php8.4-fpm restart:*)",
       "Bash(systemctl reload nginx:*)",
-      "Bash(service nginx reload:*)"
+      "Bash(service nginx reload:*)",
+      "Bash(xxd:*)",
+      "Bash(find:*)",
+      "Bash(wc:*)",
+      "Bash(service cron status:*)",
+      "Bash(service crond status:*)"
     ]
   }
 }

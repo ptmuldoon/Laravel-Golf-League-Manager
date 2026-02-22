@@ -185,6 +185,204 @@
             </div>
         </div>
 
+        {{-- Automated Backups --}}
+        <div class="content-section">
+            <h2 class="section-title">Automated Backups</h2>
+            <div class="db-actions" style="margin-bottom: 20px;">
+                <div class="db-card" style="flex: 2;">
+                    <h3>Backup Schedule</h3>
+                    <p>Configure automatic database backups. Backups are stored on the server.</p>
+                    <form action="{{ route('admin.super.backup.schedule') }}" method="POST">
+                        @csrf
+                        <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: end; margin-bottom: 15px;">
+                            <label style="display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: 0.85em; color: #555;">
+                                Status
+                                <select name="backup_enabled" style="padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 0.95em; cursor: pointer; background: white;">
+                                    <option value="1" {{ $backupSettings['enabled'] === '1' ? 'selected' : '' }}>Enabled</option>
+                                    <option value="0" {{ $backupSettings['enabled'] !== '1' ? 'selected' : '' }}>Disabled</option>
+                                </select>
+                            </label>
+                            <label style="display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: 0.85em; color: #555;">
+                                Frequency
+                                <select name="backup_frequency" style="padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 0.95em; cursor: pointer; background: white;">
+                                    <option value="daily" {{ $backupSettings['frequency'] === 'daily' ? 'selected' : '' }}>Daily</option>
+                                    <option value="weekly" {{ $backupSettings['frequency'] === 'weekly' ? 'selected' : '' }}>Weekly (Sunday)</option>
+                                    <option value="monthly" {{ $backupSettings['frequency'] === 'monthly' ? 'selected' : '' }}>Monthly (1st)</option>
+                                </select>
+                            </label>
+                            <label style="display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: 0.85em; color: #555;">
+                                Time
+                                <input type="time" name="backup_time" value="{{ $backupSettings['time'] }}" style="padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 0.95em; background: white;">
+                            </label>
+                            <label style="display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: 0.85em; color: #555;">
+                                Keep Last
+                                <select name="backup_retention" style="padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 0.95em; cursor: pointer; background: white;">
+                                    @foreach([5, 10, 15, 20, 30] as $count)
+                                        <option value="{{ $count }}" {{ (int)$backupSettings['retention'] === $count ? 'selected' : '' }}>{{ $count }} backups</option>
+                                    @endforeach
+                                </select>
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save Schedule</button>
+                    </form>
+                </div>
+                <div class="db-card" style="flex: 1;">
+                    <h3>Run Now</h3>
+                    <p>Create an immediate backup and save it to the server.</p>
+                    <form action="{{ route('admin.super.backup.now') }}" method="POST">
+                        @csrf
+                        <button type="submit" class="btn btn-primary">Run Backup Now</button>
+                    </form>
+                </div>
+            </div>
+
+            @if(count($backups) > 0)
+                <h3 style="color: #333; margin-bottom: 12px; font-size: 1.1em;">Saved Backups</h3>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Filename</th>
+                                <th>Size</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($backups as $bk)
+                                <tr>
+                                    <td style="font-family: monospace; font-size: 0.85em;">{{ $bk['name'] }}</td>
+                                    <td>{{ $bk['size'] }}</td>
+                                    <td>{{ $bk['date'] }}</td>
+                                    <td style="display: flex; gap: 8px; align-items: center;">
+                                        <a href="{{ route('admin.super.backup.download', $bk['name']) }}" class="btn btn-primary" style="padding: 5px 12px; font-size: 0.8em;">Download</a>
+                                        <form action="{{ route('admin.super.backup.delete', $bk['name']) }}" method="POST" onsubmit="return confirm('Delete this backup file?')">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-danger" style="padding: 5px 12px; font-size: 0.8em;">Delete</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @else
+                <p style="color: #888; font-size: 0.9em; font-style: italic;">No saved backups yet. Use "Run Backup Now" or enable the schedule to create backups automatically.</p>
+            @endif
+        </div>
+
+        {{-- Backup Delivery --}}
+        <div class="content-section">
+            <h2 class="section-title">Backup Delivery</h2>
+            <p style="color: #666; font-size: 0.9em; margin-bottom: 20px;">
+                Configure where backups are sent after creation. Both options are independent and can be used together.
+            </p>
+
+            <form action="{{ route('admin.super.backup.delivery') }}" method="POST">
+                @csrf
+                <div class="db-actions" style="margin-bottom: 20px;">
+                    {{-- Email Delivery --}}
+                    <div class="db-card">
+                        <h3>📧 Email Delivery</h3>
+                        <p>Attach the backup .sql file and email it to one or more recipients.</p>
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <label style="display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: 0.85em; color: #555;">
+                                Status
+                                <select name="backup_email_enabled" style="padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 0.95em; cursor: pointer; background: white;">
+                                    <option value="1" {{ $backupSettings['email_enabled'] === '1' ? 'selected' : '' }}>Enabled</option>
+                                    <option value="0" {{ $backupSettings['email_enabled'] !== '1' ? 'selected' : '' }}>Disabled</option>
+                                </select>
+                            </label>
+                            <label style="display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: 0.85em; color: #555;">
+                                Recipients (comma-separated)
+                                <input type="text" name="backup_email_recipients"
+                                       value="{{ $backupSettings['email_recipients'] }}"
+                                       placeholder="admin@example.com, user@example.com"
+                                       style="padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 0.95em; background: white;">
+                            </label>
+                        </div>
+                    </div>
+
+                    {{-- Google Drive Delivery --}}
+                    <div class="db-card">
+                        <h3>☁️ Google Drive Delivery</h3>
+                        <p>Upload the backup .sql file to a Google Drive folder via Service Account.</p>
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <label style="display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: 0.85em; color: #555;">
+                                Status
+                                <select name="backup_gdrive_enabled" style="padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 0.95em; cursor: pointer; background: white;">
+                                    <option value="1" {{ $backupSettings['gdrive_enabled'] === '1' ? 'selected' : '' }}>Enabled</option>
+                                    <option value="0" {{ $backupSettings['gdrive_enabled'] !== '1' ? 'selected' : '' }}>Disabled</option>
+                                </select>
+                            </label>
+                            <label style="display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: 0.85em; color: #555;">
+                                Folder ID
+                                <input type="text" name="backup_gdrive_folder_id"
+                                       value="{{ $backupSettings['gdrive_folder_id'] }}"
+                                       placeholder="e.g. 1AbCdEfGhIjKlMnOpQrStUvWxYz"
+                                       style="padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 0.95em; background: white;">
+                            </label>
+                            <div style="font-size: 0.85em; color: {{ $backupSettings['gdrive_credentials_uploaded'] ? '#155724' : '#856404' }}; background: {{ $backupSettings['gdrive_credentials_uploaded'] ? '#d4edda' : '#fff3cd' }}; padding: 8px 12px; border-radius: 6px;">
+                                @if($backupSettings['gdrive_credentials_uploaded'])
+                                    ✅ Credentials uploaded.
+                                    @if($backupSettings['gdrive_service_email'])
+                                        <br>Service account: <strong>{{ $backupSettings['gdrive_service_email'] }}</strong>
+                                        <br><span style="font-size: 0.9em;">Share your Google Drive folder with this email as Editor.</span>
+                                    @endif
+                                @else
+                                    ⚠️ No credentials uploaded. Upload a Service Account JSON below.
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Save Delivery Settings</button>
+            </form>
+
+            {{-- Test & Credentials --}}
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #f0f0f0;">
+                <h3 style="color: #333; margin-bottom: 12px; font-size: 1.1em;">Test & Credentials</h3>
+                <div class="db-actions">
+                    {{-- Test Email --}}
+                    <div class="db-card">
+                        <h3>Test Email</h3>
+                        <p>Send the most recent backup to your configured email recipients.</p>
+                        <form action="{{ route('admin.super.backup.testEmail') }}" method="POST">
+                            @csrf
+                            <button type="submit" class="btn btn-primary">Send Test Email</button>
+                        </form>
+                    </div>
+
+                    {{-- Google Drive Credentials --}}
+                    <div class="db-card">
+                        <h3>Google Drive Credentials</h3>
+                        <p>Upload your Google Service Account JSON key file.</p>
+                        <form action="{{ route('admin.super.backup.gdrive.credentials') }}" method="POST" enctype="multipart/form-data">
+                            @csrf
+                            <input type="file" name="gdrive_credentials" accept=".json" required
+                                   style="margin-bottom: 10px; display: block; font-size: 0.9em;">
+                            <button type="submit" class="btn btn-primary">Upload Credentials</button>
+                        </form>
+                        @if($backupSettings['gdrive_credentials_uploaded'])
+                            <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
+                                <form action="{{ route('admin.super.backup.testGdrive') }}" method="POST">
+                                    @csrf
+                                    <button type="submit" class="btn btn-primary" style="padding: 6px 14px; font-size: 0.85em;">Test Connection</button>
+                                </form>
+                                <form action="{{ route('admin.super.backup.gdrive.credentials.delete') }}" method="POST"
+                                      onsubmit="return confirm('Remove Google Drive credentials? This will disable Google Drive backups.')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-danger" style="padding: 6px 14px; font-size: 0.85em;">Remove Credentials</button>
+                                </form>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
+
         {{-- Site Theme --}}
         <div class="content-section">
             <h2 class="section-title">Site Theme</h2>

@@ -21,6 +21,7 @@ use App\Models\Score;
 use App\Models\Team;
 use App\Services\HandicapCalculator;
 use App\Services\MatchPlayCalculator;
+use App\Services\TwilioService;
 use Database\Seeders\ScoringSettingsSeeder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -1874,6 +1875,230 @@ class LeagueController extends Controller
             return redirect()->route('admin.leagues.emailMessage', $leagueId)
                 ->withErrors(['error' => 'Failed to send email: ' . $e->getMessage()]);
         }
+    }
+
+    /**
+     * Show the SMS results form
+     */
+    public function showSmsResults($leagueId)
+    {
+        $league = League::with('players')->findOrFail($leagueId);
+
+        $completedWeeks = $league->matches()
+            ->where('status', 'completed')
+            ->pluck('week_number')
+            ->unique()
+            ->sort()
+            ->values();
+
+        $playersWithPhone = $league->players()
+            ->whereNotNull('phone_number')
+            ->where('phone_number', '!=', '')
+            ->count();
+        $totalPlayers = $league->players()->count();
+
+        return view('leagues.sms-results', compact('league', 'completedWeeks', 'playersWithPhone', 'totalPlayers'));
+    }
+
+    /**
+     * Preview the condensed SMS results text
+     */
+    public function previewSmsResults(Request $request, $leagueId)
+    {
+        $weekNumber = (int) $request->query('week', 1);
+        $league = League::with(['teams.players', 'golfCourse', 'segments.teams'])->findOrFail($leagueId);
+        $data = $this->assembleWeeklyResultsData($league, $weekNumber);
+
+        $smsText = $this->buildSmsResultsText($league, $weekNumber, $data);
+
+        return response()->json([
+            'text' => $smsText,
+            'length' => strlen($smsText),
+            'segments' => ceil(strlen($smsText) / 160),
+        ]);
+    }
+
+    /**
+     * Send weekly results SMS to all league players
+     */
+    public function sendSmsResults(Request $request, $leagueId)
+    {
+        $request->validate([
+            'week_number' => 'required|integer|min:1',
+            'test_phone' => 'nullable|string|max:20',
+        ]);
+        $weekNumber = (int) $request->input('week_number');
+        $testPhone = $request->input('test_phone');
+
+        $league = League::with(['teams.players', 'golfCourse', 'segments.teams'])->findOrFail($leagueId);
+
+        if ($testPhone) {
+            $formatted = TwilioService::formatPhoneNumber($testPhone);
+            if (!$formatted) {
+                return redirect()->route('admin.leagues.smsResults', $leagueId)
+                    ->withErrors(['error' => 'Invalid phone number format.']);
+            }
+            $recipients = [$formatted];
+        } else {
+            $recipients = $league->players()
+                ->whereNotNull('phone_number')
+                ->where('phone_number', '!=', '')
+                ->pluck('phone_number')
+                ->map(fn($p) => TwilioService::formatPhoneNumber($p))
+                ->filter()
+                ->unique()
+                ->values()
+                ->toArray();
+
+            if (empty($recipients)) {
+                return redirect()->route('admin.leagues.smsResults', $leagueId)
+                    ->withErrors(['error' => 'No players have valid phone numbers.']);
+            }
+        }
+
+        $data = $this->assembleWeeklyResultsData($league, $weekNumber);
+        $smsText = $this->buildSmsResultsText($league, $weekNumber, $data);
+
+        try {
+            $twilio = new TwilioService();
+            $result = $twilio->sendBulkSms($recipients, $smsText);
+
+            $successMsg = $testPhone
+                ? "Test SMS for Week {$weekNumber} results sent to {$testPhone}!"
+                : "Week {$weekNumber} results sent to {$result['sent']} players via SMS!";
+
+            if (!empty($result['failed'])) {
+                $successMsg .= " (" . count($result['failed']) . " failed)";
+            }
+
+            return redirect()->route('admin.leagues.smsResults', $leagueId)
+                ->with('success', $successMsg);
+        } catch (\Exception $e) {
+            return redirect()->route('admin.leagues.smsResults', $leagueId)
+                ->withErrors(['error' => 'Failed to send SMS: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Show the SMS message compose form
+     */
+    public function showSmsMessage($leagueId)
+    {
+        $league = League::with('players')->findOrFail($leagueId);
+
+        $playersWithPhone = $league->players()
+            ->whereNotNull('phone_number')
+            ->where('phone_number', '!=', '')
+            ->count();
+        $totalPlayers = $league->players()->count();
+
+        return view('leagues.sms-message', compact('league', 'playersWithPhone', 'totalPlayers'));
+    }
+
+    /**
+     * Send a custom SMS message to all players
+     */
+    public function sendSmsMessage(Request $request, $leagueId)
+    {
+        $validated = $request->validate([
+            'message_body' => 'required|string|max:1600',
+            'test_phone' => 'nullable|string|max:20',
+        ]);
+
+        $league = League::with('players')->findOrFail($leagueId);
+        $testPhone = $request->input('test_phone');
+
+        if ($testPhone) {
+            $formatted = TwilioService::formatPhoneNumber($testPhone);
+            if (!$formatted) {
+                return redirect()->route('admin.leagues.smsMessage', $leagueId)
+                    ->withErrors(['error' => 'Invalid phone number format.']);
+            }
+            $recipients = [$formatted];
+        } else {
+            $recipients = $league->players()
+                ->whereNotNull('phone_number')
+                ->where('phone_number', '!=', '')
+                ->pluck('phone_number')
+                ->map(fn($p) => TwilioService::formatPhoneNumber($p))
+                ->filter()
+                ->unique()
+                ->values()
+                ->toArray();
+
+            if (empty($recipients)) {
+                return redirect()->route('admin.leagues.smsMessage', $leagueId)
+                    ->withErrors(['error' => 'No players have valid phone numbers.']);
+            }
+        }
+
+        $body = $league->name . ': ' . $validated['message_body'];
+
+        try {
+            $twilio = new TwilioService();
+            $result = $twilio->sendBulkSms($recipients, $body);
+
+            $successMsg = $testPhone
+                ? "Test SMS sent to {$testPhone}!"
+                : "SMS sent to {$result['sent']} players!";
+
+            if (!empty($result['failed'])) {
+                $successMsg .= " (" . count($result['failed']) . " failed)";
+            }
+
+            return redirect()->route('admin.leagues.smsMessage', $leagueId)
+                ->with('success', $successMsg);
+        } catch (\Exception $e) {
+            return redirect()->route('admin.leagues.smsMessage', $leagueId)
+                ->withErrors(['error' => 'Failed to send SMS: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Build condensed plain-text SMS from weekly results data.
+     */
+    private function buildSmsResultsText(League $league, int $weekNumber, array $data): string
+    {
+        $lines = [];
+        $lines[] = "{$league->name} Wk{$weekNumber} Results";
+        $lines[] = '';
+
+        // Team standings
+        if ($data['standings']->isNotEmpty()) {
+            $lines[] = 'STANDINGS:';
+            foreach ($data['standings'] as $i => $team) {
+                $pos = $i + 1;
+                $name = mb_substr($team->name, 0, 12);
+                $lines[] = "{$pos}. {$name} {$team->week_wins}-{$team->week_losses}-{$team->week_ties} ({$team->week_points}pts)";
+            }
+            $lines[] = '';
+        }
+
+        // Par 3 winners
+        if ($data['par3Winners']->isNotEmpty()) {
+            $lines[] = 'PAR 3:';
+            foreach ($data['par3Winners'] as $w) {
+                $pName = $w->player ? $w->player->name : '-';
+                $dist = $w->distance ? " ({$w->distance})" : '';
+                $lines[] = "H{$w->hole_number}: {$pName}{$dist}";
+            }
+            $lines[] = '';
+        }
+
+        // Next week schedule
+        if ($data['nextWeekMatches']->isNotEmpty()) {
+            $lines[] = "WK{$data['nextWeekNumber']} SCHEDULE:";
+            foreach ($data['nextWeekMatches'] as $match) {
+                $home = $data['nextWeekTeamNames'][$match->id]['home'] ?? 'TBD';
+                $away = $data['nextWeekTeamNames'][$match->id]['away'] ?? 'TBD';
+                $home = mb_substr($home, 0, 10);
+                $away = mb_substr($away, 0, 10);
+                $time = $match->tee_time ? \Carbon\Carbon::parse($match->tee_time)->format('g:iA') : '';
+                $lines[] = $time ? "{$time} {$home} v {$away}" : "{$home} v {$away}";
+            }
+        }
+
+        return implode("\n", $lines);
     }
 
     /**

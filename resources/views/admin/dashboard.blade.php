@@ -533,7 +533,7 @@
         </div>
 
         <!-- Active Leagues -->
-        <div class="content-section">
+        <div class="content-section" style="position: relative; z-index: 10;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <h2 class="section-title" style="margin-bottom: 0; padding-bottom: 0; border-bottom: none;">🏆 Active Leagues</h2>
                 <a href="{{ route('admin.leagues.create') }}" class="btn btn-primary" style="white-space: nowrap;">+ New League</a>
@@ -545,7 +545,7 @@
                     <a href="{{ route('admin.leagues.create') }}" class="btn btn-primary" style="margin-top: 15px;">Create League</a>
                 </div>
             @else
-                <div style="overflow-x: auto;">
+                <div style="overflow: visible;">
                 <table>
                     <thead>
                         <tr>
@@ -591,6 +591,8 @@
                                                 <a href="{{ route('admin.leagues.scores', $league->id) }}?week={{ $scorecardWeek }}">Post Scores</a>
                                                 <a href="{{ route('admin.leagues.emailResults', $league->id) }}">Email Results</a>
                                                 <a href="{{ route('admin.leagues.emailMessage', $league->id) }}">Email Message</a>
+                                                <a href="{{ route('admin.leagues.smsResults', $league->id) }}">SMS Results</a>
+                                                <a href="{{ route('admin.leagues.smsMessage', $league->id) }}">SMS Message</a>
                                                 <a href="{{ route('admin.leagues.finances', $league->id) }}">Finances</a>
                                             </div>
                                         </div>

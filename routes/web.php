@@ -115,6 +115,12 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
     Route::post('/leagues/{league_id}/email-results', [LeagueController::class, 'sendEmailResults'])->name('leagues.sendEmailResults');
     Route::get('/leagues/{league_id}/email-message', [LeagueController::class, 'showEmailMessage'])->name('leagues.emailMessage');
     Route::post('/leagues/{league_id}/email-message', [LeagueController::class, 'sendEmailMessage'])->name('leagues.sendEmailMessage');
+    // League SMS routes
+    Route::get('/leagues/{league_id}/sms-results', [LeagueController::class, 'showSmsResults'])->name('leagues.smsResults');
+    Route::get('/leagues/{league_id}/sms-results/preview', [LeagueController::class, 'previewSmsResults'])->name('leagues.previewSmsResults');
+    Route::post('/leagues/{league_id}/sms-results', [LeagueController::class, 'sendSmsResults'])->name('leagues.sendSmsResults');
+    Route::get('/leagues/{league_id}/sms-message', [LeagueController::class, 'showSmsMessage'])->name('leagues.smsMessage');
+    Route::post('/leagues/{league_id}/sms-message', [LeagueController::class, 'sendSmsMessage'])->name('leagues.sendSmsMessage');
     // League finance routes
     Route::get('/leagues/{league_id}/hole-stats', [LeagueController::class, 'holeStats'])->name('leagues.holeStats');
     Route::get('/leagues/{league_id}/finances', [LeagueController::class, 'showFinances'])->name('leagues.finances');
@@ -142,14 +148,25 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/', [SuperAdminController::class, 'index'])->name('index');
         Route::post('/backup', [SuperAdminController::class, 'backup'])->name('backup');
         Route::post('/restore', [SuperAdminController::class, 'restore'])->name('restore');
+        Route::post('/backup-schedule', [SuperAdminController::class, 'updateBackupSchedule'])->name('backup.schedule');
+        Route::post('/backup-now', [SuperAdminController::class, 'runBackupNow'])->name('backup.now');
+        Route::get('/backup/download/{filename}', [SuperAdminController::class, 'downloadBackup'])->name('backup.download')->where('filename', '[a-zA-Z0-9_\-\.]+');
+        Route::delete('/backup/{filename}', [SuperAdminController::class, 'deleteBackup'])->name('backup.delete')->where('filename', '[a-zA-Z0-9_\-\.]+');
         Route::post('/users/{id}/role', [SuperAdminController::class, 'updateUserRole'])->name('users.role');
         Route::post('/users/{id}/password', [SuperAdminController::class, 'resetUserPassword'])->name('users.password');
         Route::post('/theme', [SuperAdminController::class, 'updateTheme'])->name('theme.update');
+        // Backup delivery routes
+        Route::post('/backup-delivery', [SuperAdminController::class, 'updateBackupDelivery'])->name('backup.delivery');
+        Route::post('/backup-test-email', [SuperAdminController::class, 'testBackupEmail'])->name('backup.testEmail');
+        Route::post('/backup-gdrive-creds', [SuperAdminController::class, 'uploadGdriveCredentials'])->name('backup.gdrive.credentials');
+        Route::delete('/backup-gdrive-creds', [SuperAdminController::class, 'deleteGdriveCredentials'])->name('backup.gdrive.credentials.delete');
+        Route::post('/backup-test-gdrive', [SuperAdminController::class, 'testGdriveConnection'])->name('backup.testGdrive');
     });
 });
 
 // Home route - shows weekly league results
 Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::get('/privacy', fn () => view('privacy'))->name('privacy');
 
 Route::get('/players', [PlayerController::class, 'index'])->name('players.index');
 Route::get('/players/{id}', [PlayerController::class, 'show'])->name('players.show');
