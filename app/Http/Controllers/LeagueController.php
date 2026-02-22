@@ -1733,7 +1733,7 @@ class LeagueController extends Controller
             ->sort()
             ->values();
 
-        $playersWithEmail = $league->players()->whereNotNull('email')->where('email', '!=', '')->count();
+        $playersWithEmail = $league->players()->whereNotNull('email')->where('email', '!=', '')->where('email_enabled', true)->count();
         $totalPlayers = $league->players()->count();
 
         return view('leagues.email-results', compact('league', 'completedWeeks', 'playersWithEmail', 'totalPlayers'));
@@ -1771,13 +1771,14 @@ class LeagueController extends Controller
             $recipients = $league->players()
                 ->whereNotNull('email')
                 ->where('email', '!=', '')
+                ->where('email_enabled', true)
                 ->pluck('email')
                 ->unique()
                 ->toArray();
 
             if (empty($recipients)) {
                 return redirect()->route('admin.leagues.emailResults', $leagueId)
-                    ->withErrors(['error' => 'No players have email addresses.']);
+                    ->withErrors(['error' => 'No players have email enabled.']);
             }
         }
 
@@ -1818,7 +1819,7 @@ class LeagueController extends Controller
     {
         $league = League::with('players')->findOrFail($leagueId);
 
-        $playersWithEmail = $league->players()->whereNotNull('email')->where('email', '!=', '')->count();
+        $playersWithEmail = $league->players()->whereNotNull('email')->where('email', '!=', '')->where('email_enabled', true)->count();
         $totalPlayers = $league->players()->count();
 
         return view('leagues.email-message', compact('league', 'playersWithEmail', 'totalPlayers'));
@@ -1844,13 +1845,14 @@ class LeagueController extends Controller
             $recipients = $league->players()
                 ->whereNotNull('email')
                 ->where('email', '!=', '')
+                ->where('email_enabled', true)
                 ->pluck('email')
                 ->unique()
                 ->toArray();
 
             if (empty($recipients)) {
                 return redirect()->route('admin.leagues.emailMessage', $leagueId)
-                    ->withErrors(['error' => 'No players have email addresses.']);
+                    ->withErrors(['error' => 'No players have email enabled.']);
             }
         }
 
@@ -1894,6 +1896,7 @@ class LeagueController extends Controller
         $playersWithPhone = $league->players()
             ->whereNotNull('phone_number')
             ->where('phone_number', '!=', '')
+            ->where('sms_enabled', true)
             ->count();
         $totalPlayers = $league->players()->count();
 
@@ -1943,6 +1946,7 @@ class LeagueController extends Controller
             $recipients = $league->players()
                 ->whereNotNull('phone_number')
                 ->where('phone_number', '!=', '')
+                ->where('sms_enabled', true)
                 ->pluck('phone_number')
                 ->map(fn($p) => TwilioService::formatPhoneNumber($p))
                 ->filter()
@@ -1952,7 +1956,7 @@ class LeagueController extends Controller
 
             if (empty($recipients)) {
                 return redirect()->route('admin.leagues.smsResults', $leagueId)
-                    ->withErrors(['error' => 'No players have valid phone numbers.']);
+                    ->withErrors(['error' => 'No players have SMS enabled.']);
             }
         }
 
@@ -1989,6 +1993,7 @@ class LeagueController extends Controller
         $playersWithPhone = $league->players()
             ->whereNotNull('phone_number')
             ->where('phone_number', '!=', '')
+            ->where('sms_enabled', true)
             ->count();
         $totalPlayers = $league->players()->count();
 
@@ -2019,6 +2024,7 @@ class LeagueController extends Controller
             $recipients = $league->players()
                 ->whereNotNull('phone_number')
                 ->where('phone_number', '!=', '')
+                ->where('sms_enabled', true)
                 ->pluck('phone_number')
                 ->map(fn($p) => TwilioService::formatPhoneNumber($p))
                 ->filter()
@@ -2028,7 +2034,7 @@ class LeagueController extends Controller
 
             if (empty($recipients)) {
                 return redirect()->route('admin.leagues.smsMessage', $leagueId)
-                    ->withErrors(['error' => 'No players have valid phone numbers.']);
+                    ->withErrors(['error' => 'No players have SMS enabled.']);
             }
         }
 

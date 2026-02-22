@@ -7,7 +7,12 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class Player extends Model
 {
-    protected $fillable = ['first_name', 'last_name', 'email', 'phone_number'];
+    protected $fillable = ['first_name', 'last_name', 'email', 'phone_number', 'email_enabled', 'sms_enabled'];
+
+    protected $casts = [
+        'email_enabled' => 'boolean',
+        'sms_enabled' => 'boolean',
+    ];
 
     protected $appends = ['name'];
 

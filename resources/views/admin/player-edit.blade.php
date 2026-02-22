@@ -229,6 +229,25 @@
                     @enderror
                 </div>
 
+                <div style="display: flex; gap: 30px; margin-bottom: 20px;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="hidden" name="email_enabled" value="0">
+                            <input type="checkbox" name="email_enabled" value="1" {{ old('email_enabled', $player->email_enabled) ? 'checked' : '' }}
+                                style="width: 18px; height: 18px; accent-color: var(--primary-color); cursor: pointer;">
+                            Email Notifications
+                        </label>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="hidden" name="sms_enabled" value="0">
+                            <input type="checkbox" name="sms_enabled" value="1" {{ old('sms_enabled', $player->sms_enabled) ? 'checked' : '' }}
+                                style="width: 18px; height: 18px; accent-color: var(--primary-color); cursor: pointer;">
+                            SMS Notifications
+                        </label>
+                    </div>
+                </div>
+
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary">Save Changes</button>
                     <a href="{{ route('admin.players') }}" class="btn btn-secondary">Cancel</a>

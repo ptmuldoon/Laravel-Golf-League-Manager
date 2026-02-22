@@ -106,9 +106,9 @@
             <h2 class="section-title">Email League Message</h2>
 
             <div class="info-box">
-                <strong>{{ $playersWithEmail }}</strong> of {{ $totalPlayers }} players have email addresses and will receive this email.
+                <strong>{{ $playersWithEmail }}</strong> of {{ $totalPlayers }} players have email enabled and will receive this email.
                 @if($playersWithEmail === 0)
-                    <br><span style="color: #dc3545; font-weight: 600;">No players have email addresses. Add emails in player management first.</span>
+                    <br><span style="color: #dc3545; font-weight: 600;">No players have email enabled. Check player email addresses and notification settings.</span>
                 @endif
             </div>
 

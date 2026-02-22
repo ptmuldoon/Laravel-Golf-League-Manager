@@ -101,7 +101,16 @@ class AdminController extends Controller
         $validated = $request->validate([
             'email' => 'nullable|email|unique:players,email,' . $player->id,
             'phone_number' => 'nullable|string|max:20',
+            'email_enabled' => 'nullable',
+            'sms_enabled' => 'nullable',
         ]);
+
+        if ($request->has('email_enabled')) {
+            $validated['email_enabled'] = filter_var($request->input('email_enabled'), FILTER_VALIDATE_BOOLEAN);
+        }
+        if ($request->has('sms_enabled')) {
+            $validated['sms_enabled'] = filter_var($request->input('sms_enabled'), FILTER_VALIDATE_BOOLEAN);
+        }
 
         $player->update($validated);
 
@@ -134,6 +143,8 @@ class AdminController extends Controller
             'players' => 'required|array',
             'players.*.email' => 'nullable|email',
             'players.*.phone_number' => 'nullable|string|max:20',
+            'players.*.email_enabled' => 'nullable',
+            'players.*.sms_enabled' => 'nullable',
         ]);
 
         $updated = 0;
@@ -149,6 +160,20 @@ class AdminController extends Controller
             if (array_key_exists('phone_number', $data) && $player->phone_number !== $data['phone_number']) {
                 $player->phone_number = $data['phone_number'];
                 $changed = true;
+            }
+            if (array_key_exists('email_enabled', $data)) {
+                $val = filter_var($data['email_enabled'], FILTER_VALIDATE_BOOLEAN);
+                if ($player->email_enabled !== $val) {
+                    $player->email_enabled = $val;
+                    $changed = true;
+                }
+            }
+            if (array_key_exists('sms_enabled', $data)) {
+                $val = filter_var($data['sms_enabled'], FILTER_VALIDATE_BOOLEAN);
+                if ($player->sms_enabled !== $val) {
+                    $player->sms_enabled = $val;
+                    $changed = true;
+                }
             }
             if ($changed) {
                 $player->save();

@@ -405,6 +405,7 @@
                             <th>Name</th>
                             <th>Email</th>
                             <th>Phone</th>
+                            <th>Notifications</th>
                             <th>Handicap Index</th>
                             <th>Rounds</th>
                             <th>Actions</th>
@@ -425,6 +426,24 @@
                                 <td class="cell-phone">
                                     <span class="display-value">{{ $player->phone_number ?: 'N/A' }}</span>
                                     <input type="text" class="table-input edit-input" value="{{ $player->phone_number }}" style="display:none;" data-field="phone_number">
+                                </td>
+                                <td class="cell-notifications">
+                                    <span class="display-value">
+                                        <span title="Email {{ $player->email_enabled ? 'enabled' : 'disabled' }}" style="cursor: help; {{ $player->email_enabled ? 'opacity:1' : 'opacity:0.3' }}">📧</span>
+                                        <span title="SMS {{ $player->sms_enabled ? 'enabled' : 'disabled' }}" style="cursor: help; {{ $player->sms_enabled ? 'opacity:1' : 'opacity:0.3' }}">💬</span>
+                                    </span>
+                                    <span class="edit-input" style="display:none;">
+                                        <label style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font-size: 0.85em;">
+                                            <input type="checkbox" class="edit-checkbox" data-field="email_enabled" {{ $player->email_enabled ? 'checked' : '' }}
+                                                style="width: 15px; height: 15px; accent-color: var(--primary-color); cursor: pointer;">
+                                            📧
+                                        </label>
+                                        <label style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font-size: 0.85em; margin-left: 8px;">
+                                            <input type="checkbox" class="edit-checkbox" data-field="sms_enabled" {{ $player->sms_enabled ? 'checked' : '' }}
+                                                style="width: 15px; height: 15px; accent-color: var(--primary-color); cursor: pointer;">
+                                            💬
+                                        </label>
+                                    </span>
                                 </td>
                                 <td>
                                     {{ $player->currentHandicap()?->handicap_index ? number_format($player->currentHandicap()->handicap_index, 1) : 'N/A' }}
@@ -530,7 +549,12 @@
             row.querySelectorAll('.display-value').forEach(function(el) { el.style.display = ''; });
             row.querySelectorAll('.edit-input').forEach(function(el) {
                 el.style.display = 'none';
-                el.value = el.defaultValue;
+                if (el.tagName === 'INPUT') {
+                    el.value = el.defaultValue;
+                }
+            });
+            row.querySelectorAll('.edit-checkbox').forEach(function(el) {
+                el.checked = el.defaultChecked;
             });
             row.querySelector('.btn-inline-edit').style.display = '';
             row.querySelector('.btn-inline-save').style.display = 'none';
@@ -542,6 +566,8 @@
             var playerId = row.dataset.playerId;
             var email = row.querySelector('[data-field="email"]').value;
             var phone = row.querySelector('[data-field="phone_number"]').value;
+            var emailEnabled = row.querySelector('[data-field="email_enabled"]').checked;
+            var smsEnabled = row.querySelector('[data-field="sms_enabled"]').checked;
 
             btn.textContent = 'Saving...';
             btn.disabled = true;
@@ -553,7 +579,7 @@
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                     'Accept': 'application/json'
                 },
-                body: JSON.stringify({ email: email, phone_number: phone })
+                body: JSON.stringify({ email: email, phone_number: phone, email_enabled: emailEnabled, sms_enabled: smsEnabled })
             })
             .then(function(response) {
                 if (!response.ok) {
@@ -567,8 +593,17 @@
                 emailDisplay.textContent = email || 'N/A';
                 phoneDisplay.textContent = phone || 'N/A';
 
+                var notifIcons = row.querySelector('.cell-notifications .display-value');
+                var icons = notifIcons.querySelectorAll('span');
+                icons[0].style.opacity = emailEnabled ? '1' : '0.3';
+                icons[0].title = 'Email ' + (emailEnabled ? 'enabled' : 'disabled');
+                icons[1].style.opacity = smsEnabled ? '1' : '0.3';
+                icons[1].title = 'SMS ' + (smsEnabled ? 'enabled' : 'disabled');
+
                 row.querySelector('[data-field="email"]').defaultValue = email;
                 row.querySelector('[data-field="phone_number"]').defaultValue = phone;
+                row.querySelector('[data-field="email_enabled"]').defaultChecked = emailEnabled;
+                row.querySelector('[data-field="sms_enabled"]').defaultChecked = smsEnabled;
 
                 row.dataset.playerEmail = (email || '').toLowerCase();
 

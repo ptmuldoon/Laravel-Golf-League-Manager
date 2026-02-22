@@ -307,7 +307,7 @@
                 </div>
                 <div class="info-item">
                     <div class="info-label">Teams</div>
-                    <div class="info-value">{{ $teams->count() }}</div>
+                    <div class="info-value">{{ $league->teams->count() }}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Status</div>

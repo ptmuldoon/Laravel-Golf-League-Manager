@@ -107,9 +107,9 @@
             <h2 class="section-title">SMS League Message</h2>
 
             <div class="info-box">
-                <strong>{{ $playersWithPhone }}</strong> of {{ $totalPlayers }} players have phone numbers and will receive this SMS.
+                <strong>{{ $playersWithPhone }}</strong> of {{ $totalPlayers }} players have SMS enabled and will receive this SMS.
                 @if($playersWithPhone === 0)
-                    <br><span style="color: #dc3545; font-weight: 600;">No players have phone numbers. Add phone numbers in player management first.</span>
+                    <br><span style="color: #dc3545; font-weight: 600;">No players have SMS enabled. Check player phone numbers and notification settings.</span>
                 @endif
             </div>
 
