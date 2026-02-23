@@ -244,9 +244,10 @@ step "Configuring MySQL"
 systemctl enable --now mariadb &>/dev/null
 
 # Use unix_socket auth (script runs as root, so no password needed)
+SAFE_DB_PASSWORD="${DB_PASSWORD//\'/\'\'}"
 mysql -uroot <<SQL
 CREATE DATABASE IF NOT EXISTS \`${DB_DATABASE}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER IF NOT EXISTS '${DB_USERNAME}'@'127.0.0.1' IDENTIFIED BY '${DB_PASSWORD}';
+CREATE USER IF NOT EXISTS '${DB_USERNAME}'@'127.0.0.1' IDENTIFIED BY '${SAFE_DB_PASSWORD}';
 GRANT ALL PRIVILEGES ON \`${DB_DATABASE}\`.* TO '${DB_USERNAME}'@'127.0.0.1';
 FLUSH PRIVILEGES;
 SQL
@@ -289,7 +290,7 @@ set_env CACHE_STORE     "database"
 set_env QUEUE_CONNECTION "database"
 
 info "Installing Composer dependencies..."
-composer install --no-dev --optimize-autoloader --no-interaction -q
+COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-interaction -q
 
 info "Generating application key..."
 php artisan key:generate --force
@@ -334,7 +335,7 @@ chmod -R 775 storage bootstrap/cache
 chmod 640 .env
 
 info "Creating public storage symlink..."
-php artisan storage:link
+php artisan storage:link --force
 
 success "Laravel application configured."
 
