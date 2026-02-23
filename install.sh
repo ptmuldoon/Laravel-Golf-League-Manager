@@ -88,6 +88,10 @@ prompt -rsp "DB password         : " DB_PASSWORD
 echo
 [[ -z "$DB_PASSWORD" ]] && error "DB password cannot be empty."
 
+prompt -rsp "Confirm DB password : " DB_PASSWORD_CONFIRM
+echo
+[[ "$DB_PASSWORD" != "$DB_PASSWORD_CONFIRM" ]] && error "DB passwords do not match. Please re-run the installer."
+
 prompt -rp "Admin name          [Admin]: " ADMIN_NAME
 ADMIN_NAME="${ADMIN_NAME:-Admin}"
 
@@ -97,6 +101,10 @@ ADMIN_EMAIL="${ADMIN_EMAIL:-admin@golf.com}"
 prompt -rsp "Admin password      : " ADMIN_PASSWORD
 echo
 [[ -z "$ADMIN_PASSWORD" ]] && error "Admin password cannot be empty."
+
+prompt -rsp "Confirm admin pass  : " ADMIN_PASSWORD_CONFIRM
+echo
+[[ "$ADMIN_PASSWORD" != "$ADMIN_PASSWORD_CONFIRM" ]] && error "Admin passwords do not match. Please re-run the installer."
 
 echo
 info "Install directory : $INSTALL_DIR"
