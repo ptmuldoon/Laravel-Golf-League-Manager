@@ -151,7 +151,9 @@ fi
 # Composer
 if ! command -v composer &>/dev/null; then
     info "Installing Composer..."
-    curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer &>/dev/null
+    curl -sS https://getcomposer.org/installer -o /tmp/composer-setup.php
+    php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer --quiet
+    rm -f /tmp/composer-setup.php
 fi
 
 success "System packages installed (PHP ${PHP_VER}, nginx, MySQL, Node $(node -v), Composer $(composer --version --no-ansi 2>/dev/null | awk '{print $3}'))"

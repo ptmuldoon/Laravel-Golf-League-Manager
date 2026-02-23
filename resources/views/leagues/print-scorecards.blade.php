@@ -135,6 +135,13 @@
             line-height: 1;
         }
 
+        /* Force browsers to print background colors and images */
+        * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+        }
+
         @media print {
             body {
                 background: white;
@@ -145,14 +152,65 @@
                 display: none;
             }
             .scorecard {
-                margin-bottom: 15px;
+                margin-bottom: 8px;
                 border: 2px solid #000;
                 page-break-inside: avoid;
                 break-inside: avoid;
             }
+            /* Force page break after every 2nd scorecard */
+            .scorecard:nth-of-type(2n) {
+                page-break-after: always;
+                break-after: page;
+            }
+            /* No page break after the last scorecard */
+            .scorecard:last-of-type {
+                page-break-after: auto;
+                break-after: auto;
+            }
+            .scorecard-header {
+                padding: 6px 10px;
+            }
+            .scorecard-title {
+                font-size: 0.95em;
+            }
+            .scorecard-info {
+                font-size: 0.7em;
+            }
+            table th, table td {
+                padding: 3px 2px;
+                font-size: 0.7em;
+            }
+            .score-cell {
+                height: 22px;
+                min-width: 22px;
+            }
+            .net-row td {
+                height: 16px;
+                font-size: 0.6em;
+            }
+            .stroke-dots-row td {
+                padding: 0px 2px;
+                font-size: 0.55em;
+            }
+            .hdcp-row {
+                font-size: 0.65em;
+            }
+            .yardage-row {
+                font-size: 0.65em;
+            }
+            .handicap-info {
+                font-size: 0.6em;
+            }
+            .team-header-row td {
+                padding: 2px 6px;
+                font-size: 0.7em;
+            }
+            .note-row td {
+                height: 18px;
+            }
             @page {
                 size: landscape;
-                margin: 0.4in;
+                margin: 0.3in;
             }
         }
     </style>
