@@ -287,9 +287,6 @@ set_env DB_PORT         "3306"
 set_env DB_DATABASE     "${DB_DATABASE}"
 set_env DB_USERNAME     "${DB_USERNAME}"
 set_env DB_PASSWORD     "\"${DB_PASSWORD}\""
-set_env SESSION_DRIVER  "database"
-set_env CACHE_STORE     "database"
-set_env QUEUE_CONNECTION "database"
 
 info "Installing Composer dependencies..."
 COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-interaction --no-scripts -q
@@ -299,6 +296,11 @@ php artisan key:generate --force
 
 info "Running database migrations..."
 php artisan migrate --force
+
+# Switch to database-backed drivers now that migration has created the tables
+set_env SESSION_DRIVER  "database"
+set_env CACHE_STORE     "database"
+set_env QUEUE_CONNECTION "database"
 
 info "Discovering packages..."
 php artisan package:discover --ansi
