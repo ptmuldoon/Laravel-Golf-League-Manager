@@ -267,6 +267,11 @@ if [[ ! -f .env ]]; then
     info "Created .env from .env.example"
 fi
 
+# Use file/sync drivers during setup so Laravel can bootstrap before migrations
+sed -i 's/^SESSION_DRIVER=.*/SESSION_DRIVER=file/' .env
+sed -i 's/^CACHE_STORE=.*/CACHE_STORE=file/' .env
+sed -i 's/^QUEUE_CONNECTION=.*/QUEUE_CONNECTION=sync/' .env
+
 # Write the key values we know
 set_env() {
     local key="$1" val="$2"
