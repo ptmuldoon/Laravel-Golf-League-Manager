@@ -119,6 +119,8 @@ prompt -rp "Proceed? [y/N]: " CONFIRM
 # ─── System packages ──────────────────────────────────────────────────────────
 step "Installing system packages"
 
+export DEBIAN_FRONTEND=noninteractive
+
 apt-get update -qq
 apt-get install -y -qq software-properties-common
 
