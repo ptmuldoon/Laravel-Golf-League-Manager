@@ -1280,13 +1280,14 @@ class LeagueController extends Controller
             // Build course info and handicap data for each match
             foreach ($matches as $match) {
                 $holeRange = $match->holes === 'back_9' ? [10, 18] : [1, 9];
+                $allHolesForMatch = $match->golfCourse->courseInfo()
+                    ->where('teebox', $match->teebox)
+                    ->orderBy('hole_number')
+                    ->get();
                 $courseInfoMap[$match->id] = [
                     'holeRange' => $holeRange,
-                    'holes' => $match->golfCourse->courseInfo()
-                        ->where('teebox', $match->teebox)
-                        ->whereBetween('hole_number', $holeRange)
-                        ->orderBy('hole_number')
-                        ->get(),
+                    'holes' => $allHolesForMatch->whereBetween('hole_number', $holeRange)->values(),
+                    'allHoles' => $allHolesForMatch,
                 ];
 
                 // Compute handicaps
@@ -1660,11 +1661,11 @@ class LeagueController extends Controller
         foreach ($matches as $match) {
             $holeRange = $match->holes === 'back_9' ? [10, 18] : [1, 9];
 
-            $courseInfo = $match->golfCourse->courseInfo()
+            $allCourseInfo = $match->golfCourse->courseInfo()
                 ->where('teebox', $match->teebox)
-                ->whereBetween('hole_number', $holeRange)
                 ->orderBy('hole_number')
                 ->get();
+            $courseInfo = $allCourseInfo->whereBetween('hole_number', $holeRange)->values();
 
             if ($match->home_team_id) {
                 $homePlayers = $match->matchPlayers->where('team_id', $match->home_team_id);
@@ -1715,6 +1716,7 @@ class LeagueController extends Controller
             $scorecards[] = [
                 'match' => $match,
                 'courseInfo' => $courseInfo,
+                'allCourseInfo' => $allCourseInfo,
                 'holeRange' => $holeRange,
                 'homePlayers' => $homePlayers,
                 'awayPlayers' => $awayPlayers,

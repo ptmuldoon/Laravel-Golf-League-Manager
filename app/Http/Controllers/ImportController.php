@@ -94,7 +94,7 @@ class ImportController extends Controller
             }
 
             if (!empty($errors)) {
-                return back()->withErrors(['import_errors' => $errors]);
+                return back()->with('importErrors', $errors);
             }
 
             // Validate hole sequences
@@ -114,7 +114,7 @@ class ImportController extends Controller
             }
 
             if (!empty($errors)) {
-                return back()->withErrors(['import_errors' => $errors]);
+                return back()->with('importErrors', $errors);
             }
 
             // Import data in transaction
@@ -233,7 +233,7 @@ class ImportController extends Controller
             }
 
             if (!empty($errors)) {
-                return back()->withErrors(['import_errors' => $errors]);
+                return back()->with('importErrors', $errors);
             }
 
             // Cross-validate courses and teeboxes
@@ -260,7 +260,7 @@ class ImportController extends Controller
             }
 
             if (!empty($errors)) {
-                return back()->withErrors(['import_errors' => $errors]);
+                return back()->with('importErrors', $errors);
             }
 
             // Import data in transaction

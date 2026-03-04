@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     @include('partials.theme-vars')
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/svg+xml" href="/images/logo3.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Import Golf Courses</title>
     <style>
@@ -194,10 +194,10 @@
                 </div>
             @endif
 
-            @if($errors->has('import_errors'))
+            @if(session('importErrors'))
                 <div class="error">
                     <div class="error-title">Import Errors Found</div>
-                    @foreach($errors->get('import_errors') as $courseName => $courseErrors)
+                    @foreach(session('importErrors') as $courseName => $courseErrors)
                         <div class="error-group">
                             <div class="error-group-title">Course: {{ $courseName }}</div>
                             <ul class="error-list">

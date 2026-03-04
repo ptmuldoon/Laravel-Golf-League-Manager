@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\CourseInfo;
-use App\Models\HandicapHistory;
 use App\Models\Player;
 use App\Models\Round;
 use Illuminate\Support\Collection;
@@ -94,8 +93,7 @@ class HandicapCalculator
         }
 
         $holesPlayed = $round->holes_played ?? 18;
-        $isNineHole = ($holesPlayed == 9);
-        $totalHoles = $isNineHole ? 9 : 18;
+        $totalHoles = 18; // Always use 18-hole rankings for stroke distribution
 
         $result = [];
 
@@ -194,11 +192,11 @@ class HandicapCalculator
      * "expected" differential representing the unplayed 9 holes.
      *
      * The exact USGA formula is proprietary. This uses the widely-cited and
-     * USGA-example-validated approximation: expected 9-hole diff ≈ HI × 0.6.
+     * USGA-example-validated approximation: expected 9-hole diff ≈ HI × 0.607.
      */
     public function expectedNineHoleDifferential(float $handicapIndex): float
     {
-        return round($handicapIndex * 0.6, 1);
+        return round($handicapIndex * 0.607, 1);
     }
 
     /**
@@ -270,13 +268,12 @@ class HandicapCalculator
         $holesPlayed = $round->holes_played ?? 18;
         $isNineHole = ($holesPlayed == 9);
 
-        // Calculate course handicap for net double bogey cap
+        // Calculate course handicap for net double bogey cap.
+        // Always use the full 18-hole CH regardless of holes played, so that
+        // stroke allocation uses the full 1–18 handicap rankings correctly.
         $courseHandicap = null;
         if ($currentHandicapIndex !== null) {
             $courseHandicap = ($currentHandicapIndex * $slopeRating['slope']) / 113;
-            if ($isNineHole) {
-                $courseHandicap = $courseHandicap / 2;
-            }
         }
 
         $adjustedGross = $this->adjustedGrossScore($round, $courseHandicap);
@@ -419,7 +416,7 @@ class HandicapCalculator
         // Multiply by 0.96 (WHS rule)
         $handicapIndex = $adjustedAvg * 0.96;
 
-        // Round to one decimal
+        // Round to one decimal (WHS Rule 5.2a)
         $handicapIndex = round($handicapIndex, 1);
 
         // Cap at 54.0 (WHS max)
@@ -437,14 +434,32 @@ class HandicapCalculator
     /**
      * Compute historical handicap snapshots for a player after each round.
      * Returns an array of [calculation_date => handicap data].
+     *
+     * Differentials are built incrementally to preserve correct WHS phasing:
+     * - Before any HI is established: consecutive 9-hole rounds are paired into
+     *   18-hole equivalents (pre-2024 / new-player method).
+     * - Once an HI exists: each subsequent 9-hole round immediately generates its
+     *   own 18-hole equivalent using the 2024 WHS expected-score method.
+     *
+     * Rebuilding all differentials from scratch on each iteration would
+     * retroactively apply the expected-score method to the original paired rounds,
+     * inflating the differential count and producing a wrong handicap index.
      */
     public function computeHistoricalHandicaps(Player $player): array
     {
         $rounds = $player->rounds()
-            ->with(['scores', 'golfCourse'])
+            ->with(['scores', 'golfCourse', 'matchPlayer.match'])
             ->orderBy('played_at')
             ->orderBy('id')
-            ->get();
+            ->get()
+            // Exclude scramble rounds — scramble scores don't reflect individual play
+            ->filter(function ($round) {
+                if ($round->matchPlayer && $round->matchPlayer->match) {
+                    return $round->matchPlayer->match->scoring_type !== 'scramble';
+                }
+                return true; // keep non-match rounds (manual entries)
+            })
+            ->values();
 
         if ($rounds->isEmpty()) {
             return [];
@@ -452,25 +467,71 @@ class HandicapCalculator
 
         $history = [];
         $currentHandicapIndex = null;
+        $allDifferentials = [];
+        $pendingNineHoleDiff = null;
 
-        foreach ($rounds as $index => $round) {
-            // Build differentials from all rounds up to and including this one
-            $roundsSoFar = $rounds->slice(0, $index + 1);
-            $differentials = $this->buildDifferentialsList($roundsSoFar, $currentHandicapIndex);
-
-            $result = $this->calculateHandicapIndex($differentials);
+        foreach ($rounds as $round) {
+            $result = $this->computeRoundDifferential($round, $currentHandicapIndex);
             if ($result === null) {
                 continue;
             }
 
-            $currentHandicapIndex = $result['handicap_index'];
+            if ($result['is_nine_hole']) {
+                if ($currentHandicapIndex !== null) {
+                    // 2024 WHS: each 9-hole round immediately becomes an 18-hole
+                    // equivalent using the player's current HI as the expected score.
+                    $expectedDiff = $this->expectedNineHoleDifferential($currentHandicapIndex);
+                    $eighteenHoleEquiv = $result['differential'] + $expectedDiff;
+                    $allDifferentials[] = [
+                        'differential' => round($eighteenHoleEquiv, 1),
+                        'round_id' => $result['round_id'],
+                        'played_at' => $result['played_at'],
+                        'type' => '9_hole_expected',
+                        'actual_9_diff' => $result['differential'],
+                        'expected_9_diff' => $expectedDiff,
+                    ];
+                } else {
+                    // Pre-HI: combine consecutive pairs of 9-hole rounds.
+                    if ($pendingNineHoleDiff !== null) {
+                        $combined = $pendingNineHoleDiff['differential'] + $result['differential'];
+                        $allDifferentials[] = [
+                            'differential' => round($combined, 1),
+                            'round_ids' => [$pendingNineHoleDiff['round_id'], $result['round_id']],
+                            'played_at' => $result['played_at'],
+                            'type' => 'combined_9',
+                        ];
+                        $pendingNineHoleDiff = null;
+                    } else {
+                        $pendingNineHoleDiff = $result;
+                    }
+                }
+            } else {
+                $allDifferentials[] = [
+                    'differential' => $result['differential'],
+                    'round_id' => $result['round_id'],
+                    'played_at' => $result['played_at'],
+                    'type' => '18_hole',
+                    'adjusted_gross' => $result['adjusted_gross'],
+                    'rating' => $result['rating'],
+                    'slope' => $result['slope'],
+                ];
+            }
+
+            // Keep only the most recent 20 differentials.
+            $trimmed = array_slice($allDifferentials, -20);
+            $calcResult = $this->calculateHandicapIndex($trimmed);
+            if ($calcResult === null) {
+                continue;
+            }
+
+            $currentHandicapIndex = $calcResult['handicap_index'];
 
             $history[] = [
                 'player_id' => $player->id,
                 'calculation_date' => $round->played_at,
-                'handicap_index' => $result['handicap_index'],
-                'rounds_used' => $result['rounds_used'],
-                'score_differentials' => $result['all_differentials'],
+                'handicap_index' => $calcResult['handicap_index'],
+                'rounds_used' => $calcResult['rounds_used'],
+                'score_differentials' => $calcResult['all_differentials'],
                 'round_id' => $round->id,
             ];
         }

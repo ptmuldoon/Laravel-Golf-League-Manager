@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     @include('partials.theme-vars')
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/svg+xml" href="/images/logo3.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Weekly Scores - {{ $league->name }}</title>
     <style>
@@ -349,7 +349,7 @@
     </div>
 
     <div class="container">
-        <a href="{{ route('admin.leagues.show', $league->id) }}" class="back-link">← Back to League</a>
+        <a href="{{ route('admin.leagues.scheduleOverview', $league->id) }}" class="back-link">← Back to Schedule</a>
 
         <h1>📋 Weekly Score Entry</h1>
         <p class="subtitle">{{ $league->name }} — {{ $league->season }}</p>
@@ -407,6 +407,7 @@
                             $info = $courseInfoMap[$match->id];
                             $holeRange = $info['holeRange'];
                             $courseHoles = $info['holes'];
+                            $allCourseHoles = $info['allHoles'];
 
                             if ($match->home_team_id) {
                                 $homePlayers = $match->matchPlayers->where('team_id', $match->home_team_id);
@@ -431,7 +432,7 @@
 
                             $jsMatchData[$match->id] = [
                                 'scoringType' => $match->scoring_type,
-                                'scoreMode' => $match->score_mode ?? 'net',
+                                'scoreMode' => ($match->scoring_type === 'scramble') ? 'gross' : ($match->score_mode ?? 'net'),
                                 'homeTeam' => $homeTeamName,
                                 'awayTeam' => $awayTeamName,
                                 'holeStart' => $holeRange[0],
@@ -450,7 +451,7 @@
                                         {{ $match->match_date->format('M d, Y') }}{{ $match->tee_time ? ' at ' . \Carbon\Carbon::parse($match->tee_time)->format('g:i A') : '' }}
                                         | {{ $match->golfCourse->name }} ({{ $match->teebox }})
                                         | Holes {{ $holeRange[0] }}-{{ $holeRange[1] }}
-                                        | {{ $scoringTypes[$match->scoring_type] ?? ucfirst(str_replace('_', ' ', $match->scoring_type)) }} ({{ ucfirst($match->score_mode ?? 'net') }})
+                                        | {{ $scoringTypes[$match->scoring_type] ?? ucfirst(str_replace('_', ' ', $match->scoring_type)) }} ({{ ucfirst($match->scoring_type === 'scramble' ? 'gross' : ($match->score_mode ?? 'net')) }})
                                     </div>
                                 </div>
                                 <span class="status-badge status-{{ $match->status }}">{{ ucfirst(str_replace('_', ' ', $match->status)) }}</span>
@@ -495,24 +496,22 @@
                                                 // Pre-compute JS data and stroke allocations for all players
                                                 $allPlayerStrokes = [];
                                                 foreach ($homePlayers as $mp) {
-                                                    $numHoles = count($courseHoles);
-                                                    $ch = isset($playerHandicaps[$mp->id]) ? ($numHoles <= 9 ? $playerHandicaps[$mp->id]['ch9'] : $playerHandicaps[$mp->id]['ch18']) : 0;
+                                                    $ch = isset($playerHandicaps[$mp->id]) ? (int) $playerHandicaps[$mp->id]['ch18'] : 0;
                                                     $strokesOnHole = [];
-                                                    foreach ($courseHoles as $h) { $strokesOnHole[$h->hole_number] = 0; }
-                                                    $sorted = $courseHoles->sortBy('handicap')->pluck('hole_number')->values();
-                                                    $remaining = max(0, (int)$ch);
+                                                    foreach ($allCourseHoles as $h) { $strokesOnHole[$h->hole_number] = 0; }
+                                                    $sorted = $allCourseHoles->sortBy('handicap')->pluck('hole_number')->values();
+                                                    $remaining = max(0, $ch);
                                                     while ($remaining > 0) { foreach ($sorted as $hn) { if ($remaining <= 0) break; $strokesOnHole[$hn]++; $remaining--; } }
                                                     $allPlayerStrokes[$mp->id] = $strokesOnHole;
                                                     $jsMatchData[$match->id]['homePlayers'][] = $mp->id;
                                                     $jsMatchData[$match->id]['playerStrokes'][$mp->id] = $strokesOnHole;
                                                 }
                                                 foreach ($awayPlayers as $mp) {
-                                                    $numHoles = count($courseHoles);
-                                                    $ch = isset($playerHandicaps[$mp->id]) ? ($numHoles <= 9 ? $playerHandicaps[$mp->id]['ch9'] : $playerHandicaps[$mp->id]['ch18']) : 0;
+                                                    $ch = isset($playerHandicaps[$mp->id]) ? (int) $playerHandicaps[$mp->id]['ch18'] : 0;
                                                     $strokesOnHole = [];
-                                                    foreach ($courseHoles as $h) { $strokesOnHole[$h->hole_number] = 0; }
-                                                    $sorted = $courseHoles->sortBy('handicap')->pluck('hole_number')->values();
-                                                    $remaining = max(0, (int)$ch);
+                                                    foreach ($allCourseHoles as $h) { $strokesOnHole[$h->hole_number] = 0; }
+                                                    $sorted = $allCourseHoles->sortBy('handicap')->pluck('hole_number')->values();
+                                                    $remaining = max(0, $ch);
                                                     while ($remaining > 0) { foreach ($sorted as $hn) { if ($remaining <= 0) break; $strokesOnHole[$hn]++; $remaining--; } }
                                                     $allPlayerStrokes[$mp->id] = $strokesOnHole;
                                                     $jsMatchData[$match->id]['awayPlayers'][] = $mp->id;
@@ -577,7 +576,7 @@
                                                     <td class="player-name-cell" {!! $rideWithOpponent ? 'style="color: ' . ($isHome ? '#28a745' : '#dc3545') . ';"' : '' !!}>
                                                         {{ $mp->display_name }}
                                                         @if(isset($playerHandicaps[$mp->id]))
-                                                            <span style="font-size: 0.75em; color: var(--secondary-color); font-weight: 500;">({{ $playerHandicaps[$mp->id]['ch18'] }} / {{ $playerHandicaps[$mp->id]['ch9'] }})</span>
+                                                            <span style="font-size: 0.75em; color: var(--secondary-color); font-weight: 500;">({{ $playerHandicaps[$mp->id]['ch18'] }} / {{ collect($strokesOnHole)->only(range($holeRange[0], $holeRange[1]))->sum() }})</span>
                                                         @endif
                                                     </td>
                                                     <td class="handicap-cell">HI: {{ number_format($mp->handicap_index, 1) }}<br>CH: {{ $mp->course_handicap }}</td>

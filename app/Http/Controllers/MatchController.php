@@ -176,12 +176,12 @@ class MatchController extends Controller
         // Determine hole range based on match setting
         $holeRange = $match->holes === 'back_9' ? [10, 18] : [1, 9];
 
-        // Get course info for this teebox
-        $courseInfo = $match->golfCourse->courseInfo()
+        // Get course info for this teebox (played nine + all 18 for stroke allocation)
+        $allCourseInfo = $match->golfCourse->courseInfo()
             ->where('teebox', $match->teebox)
-            ->whereBetween('hole_number', $holeRange)
             ->orderBy('hole_number')
             ->get();
+        $courseInfo = $allCourseInfo->whereBetween('hole_number', $holeRange)->values();
 
         $scoringTypes = ScoringSetting::scoringTypes();
 
@@ -249,14 +249,14 @@ class MatchController extends Controller
         }
 
         // Compute strokes received per hole per player (for net scoring)
-        $numHoles = count($courseInfo);
+        // Always allocate using 18-hole CH across all 18 holes, then filter to played nine
         $strokesOnHoleMap = [];
         foreach ($match->matchPlayers as $mp) {
-            $ch = isset($playerHandicaps[$mp->id]) ? ($numHoles <= 9 ? $playerHandicaps[$mp->id]['ch9'] : $playerHandicaps[$mp->id]['ch18']) : 0;
+            $ch = isset($playerHandicaps[$mp->id]) ? (int) $playerHandicaps[$mp->id]['ch18'] : 0;
             $strokesOnHole = [];
-            foreach ($courseInfo as $h) { $strokesOnHole[$h->hole_number] = 0; }
-            $sorted = $courseInfo->sortBy('handicap')->pluck('hole_number')->values();
-            $remaining = max(0, (int)$ch);
+            foreach ($allCourseInfo as $h) { $strokesOnHole[$h->hole_number] = 0; }
+            $sorted = $allCourseInfo->sortBy('handicap')->pluck('hole_number')->values();
+            $remaining = max(0, $ch);
             while ($remaining > 0) {
                 foreach ($sorted as $hn) {
                     if ($remaining <= 0) break;
@@ -274,8 +274,9 @@ class MatchController extends Controller
         $tiesTotal = 0;
         $individualResults = []; // For individual_match_play: keyed by player_id
 
-        $scoreMode = $match->score_mode ?? 'net';
         $scoringType = $match->scoring_type;
+        // Scramble always uses gross scores (no individual handicap adjustments)
+        $scoreMode = ($scoringType === 'scramble') ? 'gross' : ($match->score_mode ?? 'net');
 
         for ($hole = $holeRange[0]; $hole <= $holeRange[1]; $hole++) {
             $homeScoresForHole = [];
@@ -371,7 +372,7 @@ class MatchController extends Controller
             }
         }
 
-        return view('matches.show', compact('match', 'courseInfo', 'holeRange', 'scoringTypes', 'homePlayers', 'awayPlayers', 'homeTeamName', 'awayTeamName', 'playerHandicaps', 'holeResults', 'homeWinsTotal', 'awayWinsTotal', 'tiesTotal', 'individualResults'));
+        return view('matches.show', compact('match', 'courseInfo', 'allCourseInfo', 'holeRange', 'scoringTypes', 'homePlayers', 'awayPlayers', 'homeTeamName', 'awayTeamName', 'playerHandicaps', 'holeResults', 'homeWinsTotal', 'awayWinsTotal', 'tiesTotal', 'individualResults'));
     }
 
     /**
@@ -498,12 +499,12 @@ class MatchController extends Controller
         // Determine hole range based on match setting
         $holeRange = $match->holes === 'back_9' ? [10, 18] : [1, 9];
 
-        // Get course info
-        $courseInfo = $match->golfCourse->courseInfo()
+        // Get course info (played nine + all 18 for stroke allocation)
+        $allCourseInfo = $match->golfCourse->courseInfo()
             ->where('teebox', $match->teebox)
-            ->whereBetween('hole_number', $holeRange)
             ->orderBy('hole_number')
             ->get();
+        $courseInfo = $allCourseInfo->whereBetween('hole_number', $holeRange)->values();
 
         // Split players into home/away using position_in_pairing (works for both auto-scheduled and manual)
         if ($match->home_team_id) {
@@ -568,7 +569,7 @@ class MatchController extends Controller
             $playerHandicaps[$mp->id] = ['ch18' => $ch18, 'ch9' => $ch9];
         }
 
-        return view('matches.score-entry', compact('match', 'courseInfo', 'holeRange', 'homePlayers', 'awayPlayers', 'homeTeamName', 'awayTeamName', 'playerHandicaps'));
+        return view('matches.score-entry', compact('match', 'courseInfo', 'allCourseInfo', 'holeRange', 'homePlayers', 'awayPlayers', 'homeTeamName', 'awayTeamName', 'playerHandicaps'));
     }
 
     /**
@@ -606,34 +607,34 @@ class MatchController extends Controller
                 }
             }
 
-            // Get course info for hole handicap rankings
+            // Get course info for hole handicap rankings (all 18 holes for proper stroke allocation)
             $holeRange = $match->holes === 'back_9' ? [10, 18] : [1, 9];
-            $courseInfoHoles = $match->golfCourse->courseInfo()
+            $allCourseInfoHoles = $match->golfCourse->courseInfo()
                 ->where('teebox', $match->teebox)
-                ->whereBetween('hole_number', $holeRange)
                 ->get()
                 ->keyBy('hole_number');
-            $totalHoles = 9;
+            $totalHoles = 18;
 
             foreach ($validated['scores'] as $matchPlayerId => $holeScores) {
                 $matchPlayer = MatchPlayer::findOrFail($matchPlayerId);
                 $courseHandicap = (float) $matchPlayer->course_handicap;
-                // Use 9-hole course handicap (half of 18-hole)
-                $ch9 = round($courseHandicap / 2);
+
+                // Pre-compute strokes received on each hole using 18-hole CH across all 18 holes
+                $ch = max(0, (int) round($courseHandicap));
+                $strokesMap = [];
+                foreach ($allCourseInfoHoles as $hn => $hi) {
+                    $ranking = ($hi && $hi->handicap) ? (int) $hi->handicap : (int) $hn;
+                    $base = $ch > 0 ? intdiv($ch, $totalHoles) : 0;
+                    $remainder = $ch > 0 ? ($ch % $totalHoles) : 0;
+                    $strokesMap[$hn] = $base + ($ranking <= $remainder ? 1 : 0);
+                }
 
                 foreach ($holeScores as $holeNumber => $strokes) {
-                    $holeInfo = $courseInfoHoles->get((int) $holeNumber);
+                    $holeInfo = $allCourseInfoHoles->get((int) $holeNumber);
                     $par = $holeInfo ? (int) $holeInfo->par : 4;
-                    $holeHandicapRanking = ($holeInfo && $holeInfo->handicap) ? (int) $holeInfo->handicap : (int) $holeNumber;
 
-                    // Strokes received on this hole
-                    $ch = max(0, (int) $ch9);
-                    $strokesReceived = 0;
-                    if ($ch > 0) {
-                        $base = intdiv($ch, $totalHoles);
-                        $remainder = $ch % $totalHoles;
-                        $strokesReceived = $base + ($holeHandicapRanking <= $remainder ? 1 : 0);
-                    }
+                    // Strokes received on this hole (from 18-hole allocation)
+                    $strokesReceived = $strokesMap[(int) $holeNumber] ?? 0;
 
                     // Adjusted Gross: capped at Net Double Bogey
                     $maxScore = $par + 2 + $strokesReceived;

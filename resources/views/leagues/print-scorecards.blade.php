@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     @include('partials.theme-vars')
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/svg+xml" href="/images/logo3.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scorecards - {{ $league->name }} Week {{ $weekNumber }}</title>
     <style>
@@ -106,6 +106,15 @@
         .score-cell {
             height: 28px;
             min-width: 28px;
+            position: relative;
+        }
+        .score-cell .stroke-dots {
+            position: absolute;
+            top: 1px;
+            right: 1px;
+            font-size: 10px;
+            line-height: 1;
+            color: var(--secondary-color);
         }
         .total-cell {
             font-weight: 700;
@@ -126,13 +135,6 @@
             text-align: left;
             padding-left: 8px;
             font-style: italic;
-        }
-        .stroke-dots-row td {
-            padding: 1px 4px;
-            font-size: 0.6em;
-            color: var(--secondary-color);
-            border: none;
-            line-height: 1;
         }
 
         /* Force browsers to print background colors and images */
@@ -188,10 +190,6 @@
                 height: 16px;
                 font-size: 0.6em;
             }
-            .stroke-dots-row td {
-                padding: 0px 2px;
-                font-size: 0.55em;
-            }
             .hdcp-row {
                 font-size: 0.65em;
             }
@@ -225,6 +223,7 @@
         @php
             $match = $card['match'];
             $courseInfo = $card['courseInfo'];
+            $allCourseInfo = $card['allCourseInfo'] ?? $courseInfo;
             $holeRange = $card['holeRange'];
             $homePlayers = $card['homePlayers'];
             $awayPlayers = $card['awayPlayers'];
@@ -311,10 +310,10 @@
                                 $hi = $ph ? $ph['hi'] : (float) $mp->handicap_index;
                                 $ch18 = $ph ? $ph['ch18'] : $mp->course_handicap;
                                 $ch9 = $ph ? $ph['ch9'] : round($mp->course_handicap / 2);
-                                $ch = $numHoles <= 9 ? $ch9 : $ch18;
+                                $ch = (int) $ch18;
                                 $strokesOnHole = [];
-                                foreach ($courseInfo as $h) { $strokesOnHole[$h->hole_number] = 0; }
-                                $sorted = $courseInfo->sortBy('handicap')->pluck('hole_number')->values();
+                                foreach ($allCourseInfo as $h) { $strokesOnHole[$h->hole_number] = 0; }
+                                $sorted = $allCourseInfo->sortBy('handicap')->pluck('hole_number')->values();
                                 $remaining = max(0, (int)$ch);
                                 while ($remaining > 0) {
                                     foreach ($sorted as $hn) {
@@ -327,23 +326,16 @@
                             @if($idx > 0 && $idx % 2 === 0)
                                 <tr><td colspan="{{ $colSpan }}" style="border: none; height: 3px; background: #e0e0e0;"></td></tr>
                             @endif
-                            <tr class="stroke-dots-row">
-                                <td></td><td></td>
-                                @for($hole = $holeRange[0]; $hole <= $holeRange[1]; $hole++)
-                                    <td>{{ str_repeat('●', $strokesOnHole[$hole] ?? 0) }}</td>
-                                @endfor
-                                <td></td>
-                            </tr>
                             <tr>
                                 <td class="player-name-cell" style="color: {{ $teamColor }};">
                                     {{ $mp->display_name }}
-                                    <span style="font-size: 0.75em; color: var(--secondary-color); font-weight: 500;">({{ $ch18 }} / {{ $ch9 }})</span>
+                                    <span style="font-size: 0.75em; color: var(--secondary-color); font-weight: 500;">({{ $ch18 }} / {{ collect($strokesOnHole)->only(range($holeRange[0], $holeRange[1]))->sum() }})</span>
                                 </td>
                                 <td class="handicap-info">
                                     {{ number_format($hi, 1) }} / {{ $ch18 }}
                                 </td>
                                 @for($hole = $holeRange[0]; $hole <= $holeRange[1]; $hole++)
-                                    <td class="score-cell"></td>
+                                    <td class="score-cell">@if(($strokesOnHole[$hole] ?? 0) > 0)<span class="stroke-dots">{{ str_repeat('●', $strokesOnHole[$hole]) }}</span>@endif</td>
                                 @endfor
                                 <td class="score-cell total-cell"></td>
                             </tr>
@@ -372,10 +364,10 @@
                                 $hi = $ph ? $ph['hi'] : (float) $mp->handicap_index;
                                 $ch18 = $ph ? $ph['ch18'] : $mp->course_handicap;
                                 $ch9 = $ph ? $ph['ch9'] : round($mp->course_handicap / 2);
-                                $ch = $numHoles <= 9 ? $ch9 : $ch18;
+                                $ch = (int) $ch18;
                                 $strokesOnHole = [];
-                                foreach ($courseInfo as $h) { $strokesOnHole[$h->hole_number] = 0; }
-                                $sorted = $courseInfo->sortBy('handicap')->pluck('hole_number')->values();
+                                foreach ($allCourseInfo as $h) { $strokesOnHole[$h->hole_number] = 0; }
+                                $sorted = $allCourseInfo->sortBy('handicap')->pluck('hole_number')->values();
                                 $remaining = max(0, (int)$ch);
                                 while ($remaining > 0) {
                                     foreach ($sorted as $hn) {
@@ -385,23 +377,16 @@
                                     }
                                 }
                             @endphp
-                            <tr class="stroke-dots-row">
-                                <td></td><td></td>
-                                @for($hole = $holeRange[0]; $hole <= $holeRange[1]; $hole++)
-                                    <td>{{ str_repeat('●', $strokesOnHole[$hole] ?? 0) }}</td>
-                                @endfor
-                                <td></td>
-                            </tr>
                             <tr>
                                 <td class="player-name-cell">
                                     {{ $mp->display_name }}
-                                    <span style="font-size: 0.75em; color: var(--secondary-color); font-weight: 500;">({{ $ch18 }} / {{ $ch9 }})</span>
+                                    <span style="font-size: 0.75em; color: var(--secondary-color); font-weight: 500;">({{ $ch18 }} / {{ collect($strokesOnHole)->only(range($holeRange[0], $holeRange[1]))->sum() }})</span>
                                 </td>
                                 <td class="handicap-info">
                                     {{ number_format($hi, 1) }} / {{ $ch18 }}
                                 </td>
                                 @for($hole = $holeRange[0]; $hole <= $holeRange[1]; $hole++)
-                                    <td class="score-cell"></td>
+                                    <td class="score-cell">@if(($strokesOnHole[$hole] ?? 0) > 0)<span class="stroke-dots">{{ str_repeat('●', $strokesOnHole[$hole]) }}</span>@endif</td>
                                 @endfor
                                 <td class="score-cell total-cell"></td>
                             </tr>
@@ -429,10 +414,10 @@
                                 $hi = $ph ? $ph['hi'] : (float) $mp->handicap_index;
                                 $ch18 = $ph ? $ph['ch18'] : $mp->course_handicap;
                                 $ch9 = $ph ? $ph['ch9'] : round($mp->course_handicap / 2);
-                                $ch = $numHoles <= 9 ? $ch9 : $ch18;
+                                $ch = (int) $ch18;
                                 $strokesOnHole = [];
-                                foreach ($courseInfo as $h) { $strokesOnHole[$h->hole_number] = 0; }
-                                $sorted = $courseInfo->sortBy('handicap')->pluck('hole_number')->values();
+                                foreach ($allCourseInfo as $h) { $strokesOnHole[$h->hole_number] = 0; }
+                                $sorted = $allCourseInfo->sortBy('handicap')->pluck('hole_number')->values();
                                 $remaining = max(0, (int)$ch);
                                 while ($remaining > 0) {
                                     foreach ($sorted as $hn) {
@@ -442,23 +427,16 @@
                                     }
                                 }
                             @endphp
-                            <tr class="stroke-dots-row">
-                                <td></td><td></td>
-                                @for($hole = $holeRange[0]; $hole <= $holeRange[1]; $hole++)
-                                    <td>{{ str_repeat('●', $strokesOnHole[$hole] ?? 0) }}</td>
-                                @endfor
-                                <td></td>
-                            </tr>
                             <tr>
                                 <td class="player-name-cell">
                                     {{ $mp->display_name }}
-                                    <span style="font-size: 0.75em; color: var(--secondary-color); font-weight: 500;">({{ $ch18 }} / {{ $ch9 }})</span>
+                                    <span style="font-size: 0.75em; color: var(--secondary-color); font-weight: 500;">({{ $ch18 }} / {{ collect($strokesOnHole)->only(range($holeRange[0], $holeRange[1]))->sum() }})</span>
                                 </td>
                                 <td class="handicap-info">
                                     {{ number_format($hi, 1) }} / {{ $ch18 }}
                                 </td>
                                 @for($hole = $holeRange[0]; $hole <= $holeRange[1]; $hole++)
-                                    <td class="score-cell"></td>
+                                    <td class="score-cell">@if(($strokesOnHole[$hole] ?? 0) > 0)<span class="stroke-dots">{{ str_repeat('●', $strokesOnHole[$hole]) }}</span>@endif</td>
                                 @endfor
                                 <td class="score-cell total-cell"></td>
                             </tr>

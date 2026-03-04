@@ -98,10 +98,18 @@ class CalculateHandicaps extends Command
     private function calculateCurrent(Player $player, HandicapCalculator $calculator): int
     {
         $rounds = $player->rounds()
-            ->with(['scores', 'golfCourse'])
+            ->with(['scores', 'golfCourse', 'matchPlayer.match'])
             ->orderBy('played_at')
             ->orderBy('id')
-            ->get();
+            ->get()
+            // Exclude scramble rounds — scramble scores don't reflect individual play
+            ->filter(function ($round) {
+                if ($round->matchPlayer && $round->matchPlayer->match) {
+                    return $round->matchPlayer->match->scoring_type !== 'scramble';
+                }
+                return true;
+            })
+            ->values();
 
         if ($rounds->count() < 3) {
             $this->line("  {$player->name}: Not enough rounds ({$rounds->count()})");

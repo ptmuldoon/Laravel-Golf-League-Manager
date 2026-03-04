@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     @include('partials.theme-vars')
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/svg+xml" href="/images/logo3.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Schedule Overview - {{ $league->name }}</title>
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto; background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%); min-height: 100vh; padding: 20px;">
     <div style="max-width: 1400px; margin: 0 auto;">
-        <a href="{{ route('admin.dashboard') }}" style="display: inline-block; color: white; text-decoration: none; padding: 10px 20px; background: rgba(255,255,255,0.2); border-radius: 5px; margin-bottom: 20px;">← Back to Dashboard</a>
+        <a href="{{ route('admin.leagues.show', $league->id) }}" style="display: inline-block; color: white; text-decoration: none; padding: 10px 20px; background: rgba(255,255,255,0.2); border-radius: 5px; margin-bottom: 20px;">← Back to League</a>
 
         @if(session('success'))
             <div style="background: #d4edda; color: #155724; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; font-weight: 500;">
@@ -116,6 +116,9 @@
                             Update Week
                         </button>
                     </form>
+                    <a href="{{ route('admin.leagues.scores', $league->id) }}?week={{ $weekNumber }}" onclick="event.stopPropagation()" style="padding: 6px 14px; border-radius: 6px; font-size: 0.85em; font-weight: 600; text-decoration: none; background: #17a2b8; color: white; white-space: nowrap; display: inline-block;">
+                        📝 Post
+                    </a>
                     <a href="{{ route('admin.leagues.printScorecards', [$league->id, $weekNumber]) }}" target="_blank" onclick="event.stopPropagation()" style="padding: 6px 14px; border-radius: 6px; font-size: 0.85em; font-weight: 600; text-decoration: none; background: #6c757d; color: white; white-space: nowrap; display: inline-block;">
                         🖨️ Print
                     </a>
@@ -129,7 +132,7 @@
                             @csrf
                             @method('DELETE')
                             <button type="submit" style="padding: 6px 14px; border: none; border-radius: 6px; font-size: 0.85em; font-weight: 600; cursor: pointer; background: #dc3545; color: white; white-space: nowrap;">
-                                🗑️ Delete Week
+                                🗑️ Delete
                             </button>
                         </form>
                     @endif

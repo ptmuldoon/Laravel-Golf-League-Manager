@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     @include('partials.theme-vars')
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/svg+xml" href="/images/logo3.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $league->name }}</title>
     <style>
@@ -338,14 +338,14 @@
         <div class="content-section">
             <h2 class="section-title">Actions</h2>
             <div class="action-buttons">
+                <a href="{{ route('admin.leagues.players.manage', $league->id) }}" class="btn btn-primary">
+                    Manage Players
+                </a>
                 <a href="{{ route('admin.leagues.segments.index', $league->id) }}" class="btn btn-primary">
                     Manage Segments
                 </a>
                 <a href="{{ route('admin.leagues.teams.manage', $league->id) }}" class="btn btn-primary">
                     Manage Teams
-                </a>
-                <a href="{{ route('admin.leagues.players.manage', $league->id) }}" class="btn btn-primary">
-                    Manage Players
                 </a>
                 <a href="{{ route('admin.leagues.autoSchedule', $league->id) }}" class="btn btn-success">
                     Auto-Schedule

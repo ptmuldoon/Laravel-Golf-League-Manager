@@ -504,11 +504,11 @@ class HomeController extends Controller
                 foreach ($currentWeekMatches as $cwMatch) {
                     $holeRange = $cwMatch->holes === 'back_9' ? [10, 18] : [1, 9];
 
-                    $courseInfo = $cwMatch->golfCourse->courseInfo
+                    $allCourseInfoForMatch = $cwMatch->golfCourse->courseInfo
                         ->where('teebox', $cwMatch->teebox)
-                        ->whereBetween('hole_number', $holeRange)
                         ->sortBy('hole_number')
                         ->values();
+                    $courseInfo = $allCourseInfoForMatch->whereBetween('hole_number', $holeRange)->values();
 
                     // Get slope/rating from hole 1 data
                     $courseInfoHole1 = $cwMatch->golfCourse->courseInfo
@@ -537,6 +537,7 @@ class HomeController extends Controller
 
                     $currentWeekScorecardData[$cwMatch->id] = [
                         'courseInfo' => $courseInfo,
+                        'allCourseInfo' => $allCourseInfoForMatch,
                         'holeRange' => $holeRange,
                         'playerHandicaps' => $playerHandicaps,
                     ];
@@ -729,19 +730,17 @@ class HomeController extends Controller
         foreach ($weekMatches as $match) {
             $holeRange = $match->holes === 'back_9' ? [10, 18] : [1, 9];
 
-            $courseInfo = $match->golfCourse->courseInfo
+            $allCourseInfoForMatch = $match->golfCourse->courseInfo
                 ->where('teebox', $match->teebox)
-                ->whereBetween('hole_number', $holeRange)
                 ->sortBy('hole_number')
                 ->values();
+            $courseInfo = $allCourseInfoForMatch->whereBetween('hole_number', $holeRange)->values();
 
             $courseInfoHole1 = $match->golfCourse->courseInfo
                 ->where('teebox', $match->teebox)
                 ->where('hole_number', 1)
                 ->first();
 
-            $allCourseInfoForMatch = $match->golfCourse->courseInfo
-                ->where('teebox', $match->teebox);
             $par18 = $allCourseInfoForMatch->sum('par');
 
             $slope18 = $courseInfoHole1 ? (float) $courseInfoHole1->slope : null;
@@ -761,12 +760,14 @@ class HomeController extends Controller
 
             $scorecardData[$match->id] = [
                 'courseInfo' => $courseInfo,
+                'allCourseInfo' => $allCourseInfoForMatch,
                 'holeRange' => $holeRange,
                 'playerHandicaps' => $playerHandicaps,
             ];
 
             // Calculate per-hole match results
-            $useGross = ($match->score_mode === 'gross');
+            // Scramble always uses gross scores (no individual handicap adjustments)
+            $useGross = ($match->score_mode === 'gross' || $match->scoring_type === 'scramble');
             $scoreField = $useGross ? 'strokes' : 'net_score';
 
             if ($match->home_team_id) {

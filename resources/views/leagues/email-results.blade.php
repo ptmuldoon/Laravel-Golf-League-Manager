@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     @include('partials.theme-vars')
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/svg+xml" href="/images/logo3.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Email Results - {{ $league->name }}</title>
     <style>
@@ -90,7 +90,7 @@
 </head>
 <body>
     <div class="container">
-        <a href="{{ route('admin.dashboard') }}" class="back-link">&larr; Back to Dashboard</a>
+        <a href="{{ route('admin.leagues.show', $league->id) }}" class="back-link">&larr; Back to League</a>
 
         @if(session('success'))
             <div class="success-message">&check; {{ session('success') }}</div>

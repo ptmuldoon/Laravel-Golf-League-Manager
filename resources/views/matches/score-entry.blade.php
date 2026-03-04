@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     @include('partials.theme-vars')
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/svg+xml" href="/images/logo3.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Enter Scores</title>
     <style>
@@ -178,7 +178,8 @@
         <div class="info-box">
             💡 Enter gross scores for each player on each hole ({{ $holeRange[0] }}-{{ $holeRange[1] }}).
             Adjusted gross, net scores, and match results will be calculated automatically.<br>
-            🎯 <strong>Score Mode: {{ $match->score_mode === 'gross' ? 'Gross' : 'Net' }}</strong> — Hole winners determined by {{ $match->score_mode === 'gross' ? 'gross (raw) scores' : 'net scores (after handicap strokes)' }}.
+            @php $effectiveScoreMode = ($match->scoring_type === 'scramble') ? 'gross' : ($match->score_mode ?? 'net'); @endphp
+            🎯 <strong>Score Mode: {{ $effectiveScoreMode === 'gross' ? 'Gross' : 'Net' }}</strong> — Hole winners determined by {{ $effectiveScoreMode === 'gross' ? 'gross (raw) scores' : 'net scores (after handicap strokes)' }}.
         </div>
 
         <form action="{{ route('admin.matches.storeScores', $match->id) }}" method="POST" id="scoreForm">
@@ -227,11 +228,10 @@
                         </tr>
                         @foreach($homePlayers as $matchPlayer)
                             @php
-                                $numHoles = count($courseInfo);
-                                $ch = isset($playerHandicaps[$matchPlayer->id]) ? ($numHoles <= 9 ? $playerHandicaps[$matchPlayer->id]['ch9'] : $playerHandicaps[$matchPlayer->id]['ch18']) : 0;
+                                $ch = isset($playerHandicaps[$matchPlayer->id]) ? (int) $playerHandicaps[$matchPlayer->id]['ch18'] : 0;
                                 $strokesOnHole = [];
-                                foreach ($courseInfo as $h) { $strokesOnHole[$h->hole_number] = 0; }
-                                $sorted = $courseInfo->sortBy('handicap')->pluck('hole_number')->values();
+                                foreach ($allCourseInfo as $h) { $strokesOnHole[$h->hole_number] = 0; }
+                                $sorted = $allCourseInfo->sortBy('handicap')->pluck('hole_number')->values();
                                 $remaining = max(0, (int)$ch);
                                 while ($remaining > 0) {
                                     foreach ($sorted as $hn) {
@@ -252,7 +252,7 @@
                                 <td class="player-name">
                                     {{ $matchPlayer->display_name }}
                                     @if(isset($playerHandicaps[$matchPlayer->id]))
-                                        <span style="font-size: 0.75em; color: var(--secondary-color); font-weight: 500;">({{ $playerHandicaps[$matchPlayer->id]['ch18'] }} / {{ $playerHandicaps[$matchPlayer->id]['ch9'] }})</span>
+                                        <span style="font-size: 0.75em; color: var(--secondary-color); font-weight: 500;">({{ $playerHandicaps[$matchPlayer->id]['ch18'] }} / {{ collect($strokesOnHole)->only(range($holeRange[0], $holeRange[1]))->sum() }})</span>
                                     @endif
                                 </td>
                                 <td class="handicap-cell">
@@ -286,11 +286,10 @@
                         </tr>
                         @foreach($awayPlayers as $matchPlayer)
                             @php
-                                $numHoles = count($courseInfo);
-                                $ch = isset($playerHandicaps[$matchPlayer->id]) ? ($numHoles <= 9 ? $playerHandicaps[$matchPlayer->id]['ch9'] : $playerHandicaps[$matchPlayer->id]['ch18']) : 0;
+                                $ch = isset($playerHandicaps[$matchPlayer->id]) ? (int) $playerHandicaps[$matchPlayer->id]['ch18'] : 0;
                                 $strokesOnHole = [];
-                                foreach ($courseInfo as $h) { $strokesOnHole[$h->hole_number] = 0; }
-                                $sorted = $courseInfo->sortBy('handicap')->pluck('hole_number')->values();
+                                foreach ($allCourseInfo as $h) { $strokesOnHole[$h->hole_number] = 0; }
+                                $sorted = $allCourseInfo->sortBy('handicap')->pluck('hole_number')->values();
                                 $remaining = max(0, (int)$ch);
                                 while ($remaining > 0) {
                                     foreach ($sorted as $hn) {
@@ -311,7 +310,7 @@
                                 <td class="player-name">
                                     {{ $matchPlayer->display_name }}
                                     @if(isset($playerHandicaps[$matchPlayer->id]))
-                                        <span style="font-size: 0.75em; color: var(--secondary-color); font-weight: 500;">({{ $playerHandicaps[$matchPlayer->id]['ch18'] }} / {{ $playerHandicaps[$matchPlayer->id]['ch9'] }})</span>
+                                        <span style="font-size: 0.75em; color: var(--secondary-color); font-weight: 500;">({{ $playerHandicaps[$matchPlayer->id]['ch18'] }} / {{ collect($strokesOnHole)->only(range($holeRange[0], $holeRange[1]))->sum() }})</span>
                                     @endif
                                 </td>
                                 <td class="handicap-cell">

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     @include('partials.theme-vars')
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/svg+xml" href="/images/logo3.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ config('app.name') }}</title>
     <style>
@@ -23,18 +23,31 @@
             margin: 0 auto;
         }
         .header {
-            text-align: center;
             color: white;
-            margin-bottom: 40px;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding-right: 50px; /* balance for the fixed gear icon */
+        }
+        .header-logo {
+            height: 90px;
+            flex-shrink: 0;
         }
         h1 {
+            font-family: 'Impact', 'Arial Black', sans-serif;
             font-size: 3em;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            margin-bottom: 0;
+            color: #f0c040;
+            letter-spacing: 4px;
+            white-space: nowrap;
+            -webkit-text-stroke: 1.5px #8b6914;
+            text-shadow: 0 0 10px rgba(240, 192, 64, 0.4), 2px 2px 4px rgba(0,0,0,0.3);
         }
         .tagline {
             font-size: 1.2em;
             opacity: 0.9;
+            margin-top: 4px;
         }
         .admin-link {
             position: fixed;
@@ -405,9 +418,16 @@
             }
             .header {
                 margin-bottom: 20px;
+                gap: 10px;
+                padding-right: 40px;
+            }
+            .header-logo {
+                height: 70px;
             }
             h1 {
                 font-size: 1.8em;
+                white-space: normal;
+                letter-spacing: 2px;
             }
             .tagline {
                 font-size: 1em;
@@ -468,11 +488,15 @@
             body {
                 padding: 8px;
             }
+            .header-logo {
+                height: 60px;
+            }
             h1 {
-                font-size: 1.5em;
+                font-size: 1.3em;
+                letter-spacing: 1px;
             }
             .tagline {
-                font-size: 0.9em;
+                font-size: 0.85em;
             }
             .content-section {
                 padding: 12px;
@@ -512,8 +536,13 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🏌️ {{ config('app.name') }}</h1>
-            <p class="tagline">Weekly Results & Standings</p>
+            <img src="/images/logo3.svg" alt="" class="header-logo">
+            <div style="flex: 1; text-align: center;">
+                <h1>{{ config('app.name') }}</h1>
+                @if(config('app.slogan'))
+                    <p class="tagline">{{ config('app.slogan') }}</p>
+                @endif
+            </div>
         </div>
 
         @auth

@@ -43,12 +43,44 @@ class PlayerController extends Controller
         }
 
         // Calculate total rounds and average score for each round
-        $rounds = $query->with('golfCourse')->get()->map(function ($round) {
-            $round->total_score = $round->scores()->sum('strokes');
+        $calculator = app(HandicapCalculator::class);
+        $currentHI = $currentHandicap ? (float) $currentHandicap->handicap_index : null;
+
+        $rounds = $query->with(['golfCourse', 'scores'])->get()->map(function ($round) use ($calculator, $currentHI) {
+            $round->total_score = $round->scores->sum('strokes');
+
+            $hasNetScores = $round->scores->contains(fn($s) => $s->net_score !== null);
+            $round->net_score = $hasNetScores ? $round->scores->sum('net_score') : null;
+
+            $isNineHole = ($round->holes_played ?? 18) == 9;
+            $slopeRating = $calculator->getSlopeAndRating($round);
+            $hasStoredAG = $round->scores->contains(fn($s) => $s->adjusted_gross !== null);
+
+            if ($slopeRating && $hasStoredAG) {
+                $totalAG = $round->scores->sum('adjusted_gross');
+                if ($isNineHole && $currentHI !== null) {
+                    $diff9 = $calculator->scoreDifferential9($totalAG, $slopeRating['rating'], $slopeRating['slope']);
+                    $round->scoring_differential = round($diff9 + $calculator->expectedNineHoleDifferential($currentHI), 1);
+                } elseif (!$isNineHole) {
+                    $round->scoring_differential = round($calculator->scoreDifferential18($totalAG, $slopeRating['rating'], $slopeRating['slope']), 1);
+                } else {
+                    $round->scoring_differential = null;
+                }
+            } else {
+                // Fallback: re-derive from raw strokes when adjusted_gross not stored
+                $roundDiff = $calculator->computeRoundDifferential($round, $currentHI);
+                if ($roundDiff && $roundDiff['is_nine_hole'] && $currentHI !== null) {
+                    $round->scoring_differential = round($roundDiff['differential'] + $calculator->expectedNineHoleDifferential($currentHI), 1);
+                } elseif ($roundDiff && !$roundDiff['is_nine_hole']) {
+                    $round->scoring_differential = round($roundDiff['differential'], 1);
+                } else {
+                    $round->scoring_differential = null;
+                }
+            }
 
             // Determine if it's front 9 or back 9 for 9-hole rounds
             if ($round->holes_played == 9) {
-                $holeNumbers = $round->scores()->pluck('hole_number')->toArray();
+                $holeNumbers = $round->scores->pluck('hole_number')->toArray();
                 if (!empty($holeNumbers)) {
                     $round->nine_type = max($holeNumbers) <= 9 ? 'Front 9' : 'Back 9';
                 } else {

@@ -18,6 +18,11 @@ class Round extends Model
         return $this->belongsTo(GolfCourse::class);
     }
 
+    public function matchPlayer()
+    {
+        return $this->belongsTo(MatchPlayer::class);
+    }
+
     public function scores()
     {
         return $this->hasMany(Score::class);

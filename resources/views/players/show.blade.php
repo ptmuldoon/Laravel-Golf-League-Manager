@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     @include('partials.theme-vars')
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/svg+xml" href="/images/logo3.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $player->first_name }} {{ $player->last_name }} - Rounds</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -312,7 +312,7 @@
                 -webkit-overflow-scrolling: touch;
             }
             .rounds-table table {
-                min-width: 550px;
+                min-width: 700px;
             }
             th, td {
                 padding: 10px 8px;
@@ -474,6 +474,8 @@
                                 <th>Course</th>
                                 <th>Teebox</th>
                                 <th>Score</th>
+                                <th>Net Score</th>
+                                <th>Differential</th>
                                 <th>Action</th>
                             </tr>
                         </thead>
@@ -491,6 +493,16 @@
                                         <span class="teebox teebox-{{ $round->teebox }}">{{ $round->teebox }}</span>
                                     </td>
                                     <td class="score">{{ $round->total_score }}</td>
+                                    <td class="score">
+                                        {{ $round->net_score !== null ? $round->net_score : '—' }}
+                                    </td>
+                                    <td style="font-weight: 600; color: var(--primary-color);">
+                                        @if($round->scoring_differential !== null)
+                                            {{ number_format($round->scoring_differential, 1) }}
+                                        @else
+                                            <span style="color: #999;">—</span>
+                                        @endif
+                                    </td>
                                     <td>
                                         <a href="{{ route('players.round', [$player->id, $round->id]) }}" class="view-scorecard">
                                             View Scorecard

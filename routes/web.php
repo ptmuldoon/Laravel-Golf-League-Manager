@@ -168,6 +168,7 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
 // Home route - shows weekly league results
 Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::get('/privacy', fn () => view('privacy'))->name('privacy');
+Route::get('/sms-terms', fn () => view('sms-terms'))->name('sms-terms');
 
 Route::get('/players', [PlayerController::class, 'index'])->name('players.index');
 Route::get('/players/{id}', [PlayerController::class, 'show'])->name('players.show');

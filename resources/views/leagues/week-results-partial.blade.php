@@ -21,6 +21,7 @@
             $awayTeam = $matchTeamNames[$match->id]['away'] ?? 'Away';
             $scData = $scorecardData[$match->id] ?? null;
             $courseInfo = $scData ? $scData['courseInfo'] : collect();
+            $allCourseInfo = $scData ? ($scData['allCourseInfo'] ?? $courseInfo) : collect();
             $holeRange = $scData ? $scData['holeRange'] : [1, 9];
             $playerHandicaps = $scData ? $scData['playerHandicaps'] : [];
         @endphp
@@ -109,11 +110,10 @@
                         @foreach($displayPlayers as $dIdx => $matchPlayer)
                             @php
                                 $isHome = in_array($matchPlayer->id, $homePlayerIds);
-                                $numHoles = count($courseInfo);
-                                $ch = isset($playerHandicaps[$matchPlayer->id]) ? ($numHoles <= 9 ? $playerHandicaps[$matchPlayer->id]['ch9'] : $playerHandicaps[$matchPlayer->id]['ch18']) : 0;
+                                $ch = isset($playerHandicaps[$matchPlayer->id]) ? (int) $playerHandicaps[$matchPlayer->id]['ch18'] : 0;
                                 $strokesOnHole = [];
-                                foreach ($courseInfo as $h) { $strokesOnHole[$h->hole_number] = 0; }
-                                $sorted = $courseInfo->sortBy('handicap')->pluck('hole_number')->values();
+                                foreach ($allCourseInfo as $h) { $strokesOnHole[$h->hole_number] = 0; }
+                                $sorted = $allCourseInfo->sortBy('handicap')->pluck('hole_number')->values();
                                 $remaining = max(0, (int)$ch);
                                 while ($remaining > 0) {
                                     foreach ($sorted as $hn) {
@@ -168,7 +168,7 @@
                                     @endif
                                 </td>
                                 <td class="sc-hcp-cell">
-                                    {{ $playerHandicaps[$matchPlayer->id]['ch9'] ?? $matchPlayer->course_handicap }}
+                                    {{ collect($strokesOnHole)->only(range($holeRange[0], $holeRange[1]))->sum() }}
                                 </td>
                                 @for($hole = $holeRange[0]; $hole <= $holeRange[1]; $hole++)
                                     @php $score = $matchPlayer->scores->where('hole_number', $hole)->first(); @endphp

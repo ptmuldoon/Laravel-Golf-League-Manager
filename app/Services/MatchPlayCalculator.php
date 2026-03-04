@@ -150,7 +150,8 @@ class MatchPlayCalculator
                 ->orderBy('position_in_pairing')->get();
         }
 
-        $useGross = ($match->score_mode === 'gross');
+        // Scramble always uses gross scores (no individual handicap adjustments)
+        $useGross = ($match->score_mode === 'gross' || $match->scoring_type === ScoringSetting::TYPE_SCRAMBLE);
         $scoreField = $useGross ? 'strokes' : 'net_score';
 
         $matchesWonHome = 0;
@@ -215,7 +216,8 @@ class MatchPlayCalculator
         $holesWonAway = 0;
         $holesTied = 0;
 
-        $useGross = ($match->score_mode === 'gross');
+        // Scramble always uses gross scores (no individual handicap adjustments)
+        $useGross = ($match->score_mode === 'gross' || $match->scoring_type === ScoringSetting::TYPE_SCRAMBLE);
         $scoreField = $useGross ? 'strokes' : 'net_score';
 
         for ($hole = $startHole; $hole <= $endHole; $hole++) {
@@ -264,7 +266,8 @@ class MatchPlayCalculator
             $awayPlayers = $match->matchPlayers()->where('position_in_pairing', '>', 2)->get();
         }
 
-        $useGross = ($match->score_mode === 'gross');
+        // Scramble always uses gross scores (no individual handicap adjustments)
+        $useGross = ($match->score_mode === 'gross' || $match->scoring_type === ScoringSetting::TYPE_SCRAMBLE);
         $scoreField = $useGross ? 'strokes' : 'net_score';
 
         $holesWonHome = 0;

@@ -49,7 +49,7 @@ A full-featured golf league management application built with Laravel. Manage le
 
 ### Notifications
 - **Email** — weekly results, custom messages, backup delivery
-- **SMS** — weekly results and custom messages via Twilio
+- **SMS** — weekly results and custom messages via Vonage
 - Per-player opt-in preferences for email and SMS
 - Preview before sending
 
@@ -68,7 +68,7 @@ A full-featured golf league management application built with Laravel. Manage le
 - **Backend:** PHP 8.2+ / Laravel 12
 - **Database:** MySQL / MariaDB
 - **Frontend:** Tailwind CSS 4, Vite
-- **SMS:** Twilio SDK
+- **SMS:** Vonage SDK
 - **Cloud Storage:** Google Drive API (for backups)
 - **Web Server:** Nginx with PHP-FPM
 
@@ -98,7 +98,7 @@ The script will prompt for:
    npm install && npm run build
    ```
 
-2. Copy `.env.example` to `.env` and configure your database, mail, and Twilio settings.
+2. Copy `.env.example` to `.env` and configure your database, mail, and Vonage settings.
 
 3. Generate the app key and run migrations:
    ```bash
@@ -109,7 +109,9 @@ The script will prompt for:
 4. Set permissions and create the storage symlink:
    ```bash
    chown -R www-data:www-data .
+   chmod -R 755 .
    chmod -R 775 storage bootstrap/cache
+   chmod 640 .env
    php artisan storage:link
    ```
 
@@ -121,9 +123,10 @@ Beyond the standard Laravel variables, the app uses:
 
 | Variable | Purpose |
 |---|---|
-| `TWILIO_SID` | Twilio Account SID for SMS |
-| `TWILIO_AUTH_TOKEN` | Twilio auth token |
-| `TWILIO_FROM_NUMBER` | Twilio sender phone number |
+| `VONAGE_KEY` | Vonage API key for SMS |
+| `VONAGE_SECRET` | Vonage API secret |
+| `VONAGE_SMS_FROM` | Vonage sender phone number |
+| `SLOGAN_NAME` | Custom slogan displayed in the UI |
 
 Google Drive backup credentials are uploaded through the admin UI (service account JSON).
 
