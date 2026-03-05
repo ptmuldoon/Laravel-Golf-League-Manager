@@ -395,19 +395,18 @@ class HomeController extends Controller
             ->take(20)
             ->get();
 
-        // Get upcoming matches (next 2 weeks) for selected league
-        $twoWeeksLater = Carbon::now()->addWeeks(2);
+        // Get upcoming matches for selected league (next scheduled week)
         $upcomingMatchesQuery = LeagueMatch::with([
                 'homeTeam', 'awayTeam', 'league.teams.players',
                 'golfCourse', 'matchPlayers.player'
             ])
-            ->whereIn('status', ['scheduled', 'in_progress'])
-            ->where('match_date', '<=', $twoWeeksLater);
+            ->whereIn('status', ['scheduled', 'in_progress']);
         if ($selectedLeagueId) {
             $upcomingMatchesQuery->where('league_id', $selectedLeagueId);
         }
         $upcomingMatches = $upcomingMatchesQuery->orderBy('match_date', 'asc')
-            ->take(10)
+            ->orderBy('week_number', 'asc')
+            ->take(20)
             ->get();
 
         // Build team name maps for matches with null team IDs

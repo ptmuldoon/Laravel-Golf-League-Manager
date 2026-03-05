@@ -41,8 +41,14 @@
             color: #f0c040;
             letter-spacing: 4px;
             white-space: nowrap;
+            font-style: italic;
             -webkit-text-stroke: 1.5px #8b6914;
             text-shadow: 0 0 10px rgba(240, 192, 64, 0.4), 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .h1-icon {
+            font-style: normal;
+            -webkit-text-stroke: 0;
+            font-size: 0.8em;
         }
         .tagline {
             font-size: 1.2em;
@@ -168,6 +174,17 @@
             grid-template-columns: 1fr;
             gap: 20px;
             margin-bottom: 20px;
+        }
+        @media (min-width: 769px) {
+            h1 {
+                font-size: 4.5em;
+            }
+            .tagline {
+                font-size: 1.6em;
+            }
+            .header-logo {
+                height: 130px;
+            }
         }
         @media (min-width: 900px) {
             .top-sections-grid {
@@ -428,6 +445,7 @@
                 font-size: 1.8em;
                 white-space: normal;
                 letter-spacing: 2px;
+                -webkit-text-stroke: 0.8px #8b6914;
             }
             .tagline {
                 font-size: 1em;
@@ -494,6 +512,7 @@
             h1 {
                 font-size: 1.3em;
                 letter-spacing: 1px;
+                -webkit-text-stroke: 0.5px #8b6914;
             }
             .tagline {
                 font-size: 0.85em;
@@ -538,7 +557,7 @@
         <div class="header">
             <img src="/images/logo3.svg" alt="" class="header-logo">
             <div style="flex: 1; text-align: center;">
-                <h1>{{ config('app.name') }}</h1>
+                <h1 style="position: relative;"><span class="h1-icon" style="position: absolute; right: 100%; margin-right: -35px; transform: scaleX(-1);">🍺</span>{{ config('app.name') }}<span class="h1-icon" style="position: absolute; left: 100%; margin-left: -40px;">🍺</span></h1>
                 @if(config('app.slogan'))
                     <p class="tagline">{{ config('app.slogan') }}</p>
                 @endif
