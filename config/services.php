@@ -45,4 +45,10 @@ return [
         'sms_from' => env('VONAGE_SMS_FROM'),
     ],
 
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'drive_refresh_token' => env('GOOGLE_DRIVE_REFRESH_TOKEN'),
+    ],
+
 ];

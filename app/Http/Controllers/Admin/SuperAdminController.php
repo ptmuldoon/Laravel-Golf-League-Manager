@@ -31,8 +31,9 @@ class SuperAdminController extends Controller
             'email_recipients' => SiteSetting::get('backup_email_recipients', ''),
             'gdrive_enabled' => SiteSetting::get('backup_gdrive_enabled', '0'),
             'gdrive_folder_id' => SiteSetting::get('backup_gdrive_folder_id', ''),
-            'gdrive_credentials_uploaded' => file_exists(storage_path('app/private/google/service-account.json')),
-            'gdrive_service_email' => $this->getServiceAccountEmail(),
+            'gdrive_configured' => !empty(config('services.google.client_id'))
+                && !empty(config('services.google.client_secret'))
+                && !empty(config('services.google.drive_refresh_token')),
         ];
 
         $backups = $this->getBackupFiles();
@@ -275,11 +276,13 @@ class SuperAdminController extends Controller
             }
         }
 
-        // Prevent enabling Google Drive without credentials
+        // Prevent enabling Google Drive without OAuth credentials
         if ($validated['backup_gdrive_enabled'] === '1'
-            && !file_exists(storage_path('app/private/google/service-account.json'))) {
+            && (empty(config('services.google.client_id'))
+                || empty(config('services.google.client_secret'))
+                || empty(config('services.google.drive_refresh_token')))) {
             return redirect()->route('admin.super.index')
-                ->with('error', 'Cannot enable Google Drive backup: no credentials uploaded.');
+                ->with('error', 'Cannot enable Google Drive backup: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_DRIVE_REFRESH_TOKEN must be set in .env. Run: php artisan google:auth');
         }
 
         SiteSetting::set('backup_email_enabled', $validated['backup_email_enabled']);
@@ -330,22 +333,23 @@ class SuperAdminController extends Controller
 
         $file = $request->file('gdrive_credentials');
 
-        if (strtolower($file->getClientOriginalExtension()) !== 'json') {
+        if (strtolower($file->getClientOriginalExtension()) !== 'p12') {
             return redirect()->route('admin.super.index')
-                ->with('error', 'Only .json files are accepted.');
+                ->with('error', 'Only .p12 files are accepted.');
         }
 
         $contents = file_get_contents($file->getRealPath());
-        $json = json_decode($contents, true);
 
-        if (!$json || !isset($json['type']) || $json['type'] !== 'service_account') {
+        // Validate the P12 file can be read with the default Google password
+        $certs = [];
+        if (!openssl_pkcs12_read($contents, $certs, 'notasecret')) {
             return redirect()->route('admin.super.index')
-                ->with('error', 'Invalid file: must be a Google Service Account JSON key (type=service_account).');
+                ->with('error', 'Invalid P12 file: could not read with the default Google service account password.');
         }
 
-        if (!isset($json['client_email']) || !isset($json['private_key'])) {
+        if (empty($certs['pkey'])) {
             return redirect()->route('admin.super.index')
-                ->with('error', 'Invalid service account file: missing client_email or private_key.');
+                ->with('error', 'Invalid P12 file: no private key found.');
         }
 
         $dir = storage_path('app/private/google');
@@ -353,20 +357,26 @@ class SuperAdminController extends Controller
             mkdir($dir, 0700, true);
         }
 
-        file_put_contents($dir . '/service-account.json', $contents);
-        chmod($dir . '/service-account.json', 0600);
+        file_put_contents($dir . '/service-account.p12', $contents);
+        chmod($dir . '/service-account.p12', 0600);
 
         return redirect()->route('admin.super.index')
-            ->with('success', 'Google Drive credentials uploaded. Service account: ' . $json['client_email']);
+            ->with('success', 'Google Drive P12 key uploaded successfully.');
     }
 
     public function deleteGdriveCredentials()
     {
         SiteSetting::set('backup_gdrive_enabled', '0');
 
-        $path = storage_path('app/private/google/service-account.json');
-        if (file_exists($path)) {
-            unlink($path);
+        $p12Path = storage_path('app/private/google/service-account.p12');
+        if (file_exists($p12Path)) {
+            unlink($p12Path);
+        }
+
+        // Also clean up legacy JSON key if present
+        $jsonPath = storage_path('app/private/google/service-account.json');
+        if (file_exists($jsonPath)) {
+            unlink($jsonPath);
         }
 
         return redirect()->route('admin.super.index')
@@ -397,17 +407,6 @@ class SuperAdminController extends Controller
             return redirect()->route('admin.super.index')
                 ->with('error', 'Google Drive test failed: ' . $e->getMessage());
         }
-    }
-
-    protected function getServiceAccountEmail(): ?string
-    {
-        $path = storage_path('app/private/google/service-account.json');
-        if (!file_exists($path)) {
-            return null;
-        }
-
-        $json = json_decode(file_get_contents($path), true);
-        return $json['client_email'] ?? null;
     }
 
     public function updateTheme(Request $request)

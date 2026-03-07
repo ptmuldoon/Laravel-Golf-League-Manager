@@ -14,15 +14,18 @@ class GoogleDriveService
 
     public function __construct()
     {
-        $credentialsPath = storage_path('app/private/google/service-account.json');
+        $this->client = new GoogleClient();
+        $this->client->setClientId(config('services.google.client_id'));
+        $this->client->setClientSecret(config('services.google.client_secret'));
+        $this->client->addScope(GoogleDrive::DRIVE_FILE);
+        $this->client->setAccessType('offline');
 
-        if (!file_exists($credentialsPath)) {
-            throw new \Exception('Google Service Account credentials file not found.');
+        $refreshToken = config('services.google.drive_refresh_token');
+        if (empty($refreshToken)) {
+            throw new \Exception('GOOGLE_DRIVE_REFRESH_TOKEN is not configured. Run: php artisan google:auth');
         }
 
-        $this->client = new GoogleClient();
-        $this->client->setAuthConfig($credentialsPath);
-        $this->client->addScope(GoogleDrive::DRIVE_FILE);
+        $this->client->refreshToken($refreshToken);
 
         $this->driveService = new GoogleDrive($this->client);
     }
@@ -62,10 +65,10 @@ class GoogleDriveService
         } catch (\Google\Service\Exception $e) {
             $message = $e->getMessage();
             if (str_contains($message, '404')) {
-                return ['success' => false, 'message' => 'Folder not found. Make sure the folder ID is correct and shared with the service account.'];
+                return ['success' => false, 'message' => 'Folder not found. Make sure the folder ID is correct.'];
             }
             if (str_contains($message, '403')) {
-                return ['success' => false, 'message' => 'Access denied. Share the folder with the service account email as Editor.'];
+                return ['success' => false, 'message' => 'Access denied. Re-run php artisan google:auth to re-authorize.'];
             }
             return ['success' => false, 'message' => $message];
         }

@@ -159,8 +159,6 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
         // Backup delivery routes
         Route::post('/backup-delivery', [SuperAdminController::class, 'updateBackupDelivery'])->name('backup.delivery');
         Route::post('/backup-test-email', [SuperAdminController::class, 'testBackupEmail'])->name('backup.testEmail');
-        Route::post('/backup-gdrive-creds', [SuperAdminController::class, 'uploadGdriveCredentials'])->name('backup.gdrive.credentials');
-        Route::delete('/backup-gdrive-creds', [SuperAdminController::class, 'deleteGdriveCredentials'])->name('backup.gdrive.credentials.delete');
         Route::post('/backup-test-gdrive', [SuperAdminController::class, 'testGdriveConnection'])->name('backup.testGdrive');
     });
 });

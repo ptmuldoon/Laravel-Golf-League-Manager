@@ -323,15 +323,11 @@
                                        placeholder="e.g. 1AbCdEfGhIjKlMnOpQrStUvWxYz"
                                        style="padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 0.95em; background: white;">
                             </label>
-                            <div style="font-size: 0.85em; color: {{ $backupSettings['gdrive_credentials_uploaded'] ? '#155724' : '#856404' }}; background: {{ $backupSettings['gdrive_credentials_uploaded'] ? '#d4edda' : '#fff3cd' }}; padding: 8px 12px; border-radius: 6px;">
-                                @if($backupSettings['gdrive_credentials_uploaded'])
-                                    ✅ Credentials uploaded.
-                                    @if($backupSettings['gdrive_service_email'])
-                                        <br>Service account: <strong>{{ $backupSettings['gdrive_service_email'] }}</strong>
-                                        <br><span style="font-size: 0.9em;">Share your Google Drive folder with this email as Editor.</span>
-                                    @endif
+                            <div style="font-size: 0.85em; color: {{ $backupSettings['gdrive_configured'] ? '#155724' : '#856404' }}; background: {{ $backupSettings['gdrive_configured'] ? '#d4edda' : '#fff3cd' }}; padding: 8px 12px; border-radius: 6px;">
+                                @if($backupSettings['gdrive_configured'])
+                                    ✅ Google Drive OAuth configured.
                                 @else
-                                    ⚠️ No credentials uploaded. Upload a Service Account JSON below.
+                                    ⚠️ Google Drive not configured. Run <code>php artisan google:auth</code> on the server and set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_DRIVE_REFRESH_TOKEN in .env.
                                 @endif
                             </div>
                         </div>
@@ -354,29 +350,15 @@
                         </form>
                     </div>
 
-                    {{-- Google Drive Credentials --}}
+                    {{-- Google Drive Connection --}}
                     <div class="db-card">
-                        <h3>Google Drive Credentials</h3>
-                        <p>Upload your Google Service Account JSON key file.</p>
-                        <form action="{{ route('admin.super.backup.gdrive.credentials') }}" method="POST" enctype="multipart/form-data">
-                            @csrf
-                            <input type="file" name="gdrive_credentials" accept=".json" required
-                                   style="margin-bottom: 10px; display: block; font-size: 0.9em;">
-                            <button type="submit" class="btn btn-primary">Upload Credentials</button>
-                        </form>
-                        @if($backupSettings['gdrive_credentials_uploaded'])
-                            <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
-                                <form action="{{ route('admin.super.backup.testGdrive') }}" method="POST">
-                                    @csrf
-                                    <button type="submit" class="btn btn-primary" style="padding: 6px 14px; font-size: 0.85em;">Test Connection</button>
-                                </form>
-                                <form action="{{ route('admin.super.backup.gdrive.credentials.delete') }}" method="POST"
-                                      onsubmit="return confirm('Remove Google Drive credentials? This will disable Google Drive backups.')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn-danger" style="padding: 6px 14px; font-size: 0.85em;">Remove Credentials</button>
-                                </form>
-                            </div>
+                        <h3>Google Drive Connection</h3>
+                        <p>Configure via .env and <code>php artisan google:auth</code> on the server.</p>
+                        @if($backupSettings['gdrive_configured'])
+                            <form action="{{ route('admin.super.backup.testGdrive') }}" method="POST">
+                                @csrf
+                                <button type="submit" class="btn btn-primary" style="padding: 6px 14px; font-size: 0.85em;">Test Connection</button>
+                            </form>
                         @endif
                     </div>
                 </div>
