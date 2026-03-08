@@ -66,6 +66,7 @@
         table {
             width: 100%;
             border-collapse: collapse;
+            table-layout: fixed;
         }
         th, td {
             border: 1px solid #999;
@@ -77,6 +78,9 @@
             background: #e8ecf4;
             font-weight: 700;
             color: #333;
+        }
+        .hole-col {
+            width: 10px;
         }
         .player-name-cell {
             text-align: left;
@@ -120,11 +124,6 @@
             font-weight: 700;
             background: var(--primary-light);
         }
-        .handicap-info {
-            font-size: 0.7em;
-            color: #666;
-            font-weight: normal;
-        }
         .net-row td {
             height: 22px;
             font-size: 0.7em;
@@ -154,13 +153,14 @@
                 display: none;
             }
             .scorecard {
-                margin-bottom: 8px;
+                margin-top: 10px;
+                margin-bottom: 20px;
                 border: 2px solid #000;
                 page-break-inside: avoid;
                 break-inside: avoid;
             }
-            /* Force page break after every 2nd scorecard */
-            .scorecard:nth-of-type(2n) {
+            /* Force page break after every 2nd scorecard (2n+1 accounts for the .no-print div) */
+            .scorecard:nth-of-type(2n+1) {
                 page-break-after: always;
                 break-after: page;
             }
@@ -183,11 +183,11 @@
                 font-size: 0.7em;
             }
             .score-cell {
-                height: 22px;
+                height: 36px;
                 min-width: 22px;
             }
             .net-row td {
-                height: 16px;
+                height: 24px;
                 font-size: 0.6em;
             }
             .hdcp-row {
@@ -195,9 +195,6 @@
             }
             .yardage-row {
                 font-size: 0.65em;
-            }
-            .handicap-info {
-                font-size: 0.6em;
             }
             .team-header-row td {
                 padding: 2px 6px;
@@ -207,7 +204,7 @@
                 height: 18px;
             }
             @page {
-                size: landscape;
+                size: portrait;
                 margin: 0.3in;
             }
         }
@@ -231,7 +228,7 @@
             $awayTeamName = $card['awayTeamName'];
             $cardHandicaps = $card['playerHandicaps'];
             $numHoles = $holeRange[1] - $holeRange[0] + 1;
-            $colSpan = $numHoles + 3; // player + hdcp + holes + total
+            $colSpan = $numHoles + 2; // player + holes + total
         @endphp
         <div class="scorecard">
             <div class="scorecard-header">
@@ -249,16 +246,14 @@
             <table>
                 <thead>
                     <tr>
-                        <th style="width: 150px; text-align: left; padding-left: 8px;">Player</th>
-                        <th style="width: 50px;">HCP</th>
+                        <th style="width: 30px; text-align: left; padding-left: 8px;">Player</th>
                         @for($hole = $holeRange[0]; $hole <= $holeRange[1]; $hole++)
-                            <th>{{ $hole }}</th>
+                            <th class="hole-col">{{ $hole }}</th>
                         @endfor
-                        <th style="width: 40px;">TOT</th>
+                        <th class="hole-col">TOT</th>
                     </tr>
                     <tr class="yardage-row">
-                        <td style="text-align: left; padding-left: 8px;"><strong>{{ $match->teebox }}</strong></td>
-                        <td>Yds</td>
+                        <td style="text-align: left; padding-left: 8px;"><strong>{{ $match->teebox }}</strong> Yds</td>
                         @foreach($courseInfo as $holeInfo)
                             <td>{{ $holeInfo->yardage ?? '' }}</td>
                         @endforeach
@@ -266,7 +261,6 @@
                     </tr>
                     <tr class="par-row">
                         <td style="text-align: left; padding-left: 8px;"><strong>Par</strong></td>
-                        <td></td>
                         @foreach($courseInfo as $holeInfo)
                             <td>{{ $holeInfo->par }}</td>
                         @endforeach
@@ -274,7 +268,6 @@
                     </tr>
                     <tr class="hdcp-row">
                         <td style="text-align: left; padding-left: 8px;"><strong>Hdcp</strong></td>
-                        <td></td>
                         @foreach($courseInfo as $holeInfo)
                             <td>{{ $holeInfo->handicap ?? '' }}</td>
                         @endforeach
@@ -331,9 +324,6 @@
                                     {{ $mp->display_name }}
                                     <span style="font-size: 0.75em; color: var(--secondary-color); font-weight: 500;">({{ $ch18 }} / {{ collect($strokesOnHole)->only(range($holeRange[0], $holeRange[1]))->sum() }})</span>
                                 </td>
-                                <td class="handicap-info">
-                                    {{ number_format($hi, 1) }} / {{ $ch18 }}
-                                </td>
                                 @for($hole = $holeRange[0]; $hole <= $holeRange[1]; $hole++)
                                     <td class="score-cell">@if(($strokesOnHole[$hole] ?? 0) > 0)<span class="stroke-dots">{{ str_repeat('●', $strokesOnHole[$hole]) }}</span>@endif</td>
                                 @endfor
@@ -341,7 +331,6 @@
                             </tr>
                             <tr class="net-row">
                                 <td class="net-label">Net</td>
-                                <td></td>
                                 @for($hole = $holeRange[0]; $hole <= $holeRange[1]; $hole++)
                                     <td></td>
                                 @endfor
@@ -382,9 +371,6 @@
                                     {{ $mp->display_name }}
                                     <span style="font-size: 0.75em; color: var(--secondary-color); font-weight: 500;">({{ $ch18 }} / {{ collect($strokesOnHole)->only(range($holeRange[0], $holeRange[1]))->sum() }})</span>
                                 </td>
-                                <td class="handicap-info">
-                                    {{ number_format($hi, 1) }} / {{ $ch18 }}
-                                </td>
                                 @for($hole = $holeRange[0]; $hole <= $holeRange[1]; $hole++)
                                     <td class="score-cell">@if(($strokesOnHole[$hole] ?? 0) > 0)<span class="stroke-dots">{{ str_repeat('●', $strokesOnHole[$hole]) }}</span>@endif</td>
                                 @endfor
@@ -392,7 +378,6 @@
                             </tr>
                             <tr class="net-row">
                                 <td class="net-label">Net</td>
-                                <td></td>
                                 @for($hole = $holeRange[0]; $hole <= $holeRange[1]; $hole++)
                                     <td></td>
                                 @endfor
@@ -432,9 +417,6 @@
                                     {{ $mp->display_name }}
                                     <span style="font-size: 0.75em; color: var(--secondary-color); font-weight: 500;">({{ $ch18 }} / {{ collect($strokesOnHole)->only(range($holeRange[0], $holeRange[1]))->sum() }})</span>
                                 </td>
-                                <td class="handicap-info">
-                                    {{ number_format($hi, 1) }} / {{ $ch18 }}
-                                </td>
                                 @for($hole = $holeRange[0]; $hole <= $holeRange[1]; $hole++)
                                     <td class="score-cell">@if(($strokesOnHole[$hole] ?? 0) > 0)<span class="stroke-dots">{{ str_repeat('●', $strokesOnHole[$hole]) }}</span>@endif</td>
                                 @endfor
@@ -442,7 +424,6 @@
                             </tr>
                             <tr class="net-row">
                                 <td class="net-label">Net</td>
-                                <td></td>
                                 @for($hole = $holeRange[0]; $hole <= $holeRange[1]; $hole++)
                                     <td></td>
                                 @endfor
