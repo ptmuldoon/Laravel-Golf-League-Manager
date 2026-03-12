@@ -189,17 +189,17 @@
                 min-width: 18px;
             }
             .score-cell .stroke-dots {
-                font-size: 10px;
+                font-size: 12px;
             }
             .net-row td {
                 height: 24px;
                 font-size: 0.55em;
             }
             .hdcp-row td {
-                font-size: 0.6em;
+                font-size: 0.65em;
             }
             .yardage-row td {
-                font-size: 0.6em;
+                font-size: 0.65em;
             }
             .team-header-row td {
                 padding: 1px 6px;
@@ -209,7 +209,7 @@
                 height: 18px;
             }
             .player-name-cell {
-                font-size: 0.65em;
+                font-size: 0.8em;
                 padding-left: 4px;
             }
             @page {
@@ -255,7 +255,7 @@
             <table>
                 <thead>
                     <tr>
-                        <th style="width: 30px; text-align: left; padding-left: 8px;">Player</th>
+                        <th style="width: 30px; text-align: left; padding-left: 8px;">Hole</th>
                         @for($hole = $holeRange[0]; $hole <= $holeRange[1]; $hole++)
                             <th class="hole-col">{{ $hole }}</th>
                         @endfor
