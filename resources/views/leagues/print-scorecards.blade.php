@@ -153,13 +153,13 @@
                 display: none;
             }
             .scorecard {
-                margin-top: 10px;
+                margin-top: 0;
                 margin-bottom: 20px;
                 border: 2px solid #000;
                 page-break-inside: avoid;
                 break-inside: avoid;
             }
-            /* Force page break after every 2nd scorecard (2n+1 accounts for the .no-print div) */
+            /* Force page break after every 2nd scorecard */
             .scorecard:nth-of-type(2n+1) {
                 page-break-after: always;
                 break-after: page;
@@ -170,42 +170,51 @@
                 break-after: auto;
             }
             .scorecard-header {
-                padding: 6px 10px;
+                padding: 4px 8px;
+                border-bottom-width: 1px;
             }
             .scorecard-title {
-                font-size: 0.95em;
+                font-size: 0.85em;
             }
             .scorecard-info {
-                font-size: 0.7em;
+                font-size: 0.6em;
+                line-height: 1.3;
             }
             table th, table td {
-                padding: 3px 2px;
-                font-size: 0.7em;
+                padding: 2px 1px;
+                font-size: 0.65em;
             }
             .score-cell {
                 height: 36px;
-                min-width: 22px;
+                min-width: 18px;
+            }
+            .score-cell .stroke-dots {
+                font-size: 10px;
             }
             .net-row td {
                 height: 24px;
+                font-size: 0.55em;
+            }
+            .hdcp-row td {
                 font-size: 0.6em;
             }
-            .hdcp-row {
-                font-size: 0.65em;
-            }
-            .yardage-row {
-                font-size: 0.65em;
+            .yardage-row td {
+                font-size: 0.6em;
             }
             .team-header-row td {
-                padding: 2px 6px;
-                font-size: 0.7em;
+                padding: 1px 6px;
+                font-size: 0.65em;
             }
             .note-row td {
                 height: 18px;
             }
+            .player-name-cell {
+                font-size: 0.65em;
+                padding-left: 4px;
+            }
             @page {
                 size: portrait;
-                margin: 0.3in;
+                margin: 0.25in;
             }
         }
     </style>
@@ -437,6 +446,11 @@
                     @endif
                 </tbody>
             </table>
+            @if($league->sub_request_code)
+                <div style="padding: 4px 10px; font-size: 0.7em; color: #666; border-top: 1px solid #ccc; text-align: right;">
+                    Need a sub? Visit the league website @ <strong>{{ config('app.url') }}</strong> &mdash; Sub Request Code: <strong>{{ $league->sub_request_code }}</strong>
+                </div>
+            @endif
         </div>
     @endforeach
 
