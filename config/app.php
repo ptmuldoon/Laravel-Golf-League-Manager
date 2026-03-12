@@ -17,6 +17,10 @@ return [
 
     'slogan' => env('SLOGAN_NAME', ''),
 
+    'show_logo' => env('SHOW_LOGO', true),
+
+    'show_icons' => env('SHOW_ICONS', true),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment

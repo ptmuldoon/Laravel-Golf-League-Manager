@@ -670,9 +670,11 @@
 <body>
     <div class="container">
         <div class="header">
-            <img src="/images/logo3.svg" alt="" class="header-logo">
+            @if(config('app.show_logo'))
+                <img src="/images/logo3.svg" alt="" class="header-logo">
+            @endif
             <div style="flex: 1; text-align: center;">
-                <h1 style="position: relative;"><span class="h1-icon" style="position: absolute; right: 100%; margin-right: -35px; transform: scaleX(-1);">🍺</span>{{ config('app.name') }}<span class="h1-icon" style="position: absolute; left: 100%; margin-left: -40px;">🍺</span></h1>
+                <h1 style="position: relative;">@if(config('app.show_icons'))<span class="h1-icon" style="position: absolute; right: 100%; margin-right: -35px; transform: scaleX(-1);">🍺</span>@endif{{ config('app.name') }}@if(config('app.show_icons'))<span class="h1-icon" style="position: absolute; left: 100%; margin-left: -40px;">🍺</span>@endif</h1>
                 @if(config('app.slogan'))
                     <p class="tagline">{{ config('app.slogan') }}</p>
                 @endif
