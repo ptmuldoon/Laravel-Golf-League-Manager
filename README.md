@@ -24,7 +24,7 @@ A full-featured golf league management application built with Laravel. Manage le
 - Configurable per-league point values for wins, losses, ties
 - Gross and net score modes
 - 9-hole (front/back) and 18-hole support
-- Per-hole score entry with printable scorecards (2 per page, landscape, color)
+- Per-hole score entry with printable scorecards (2 per page, portrait)
 
 ### WHS Handicap System
 - Full World Handicap System (2024 rules) compliance
@@ -47,6 +47,13 @@ A full-featured golf league management application built with Laravel. Manage le
 - Player ledger with fee tracking
 - Par 3 contest payouts and winner tracking
 
+### Sub Requests
+- Players can request subs from the public home page
+- Admins notified via email and/or SMS (configurable per admin)
+- Optional league passphrase (`sub_request_code`) to prevent unauthorized requests
+- Rate limiting (5 requests per 60 minutes per IP)
+- Sub request code printed on scorecards when configured
+
 ### Notifications
 - **Email** — weekly results, custom messages, backup delivery
 - **SMS** — weekly results and custom messages via Vonage
@@ -62,6 +69,11 @@ A full-featured golf league management application built with Laravel. Manage le
 ### Theme Customization
 - Admin-configurable primary and secondary colors
 - Applied globally across the UI and email templates
+- Toggleable logo and icons via environment variables
+
+### League Simulator
+- Generate realistic simulated scores for testing
+- `php artisan league:simulate {league_id} --weeks=8`
 
 ## Tech Stack
 
@@ -127,6 +139,8 @@ Beyond the standard Laravel variables, the app uses:
 | `VONAGE_SECRET` | Vonage API secret |
 | `VONAGE_SMS_FROM` | Vonage sender phone number |
 | `SLOGAN_NAME` | Custom slogan displayed in the UI |
+| `SHOW_LOGO` | Show/hide the site logo on the home page (default: `true`) |
+| `SHOW_ICONS` | Show/hide the beer mug icons on the home page (default: `true`) |
 
 Google Drive backup credentials are uploaded through the admin UI (service account JSON).
 
