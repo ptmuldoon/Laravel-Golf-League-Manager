@@ -140,12 +140,12 @@ step "Installing system packages"
 
 export DEBIAN_FRONTEND=noninteractive
 
-apt-get update -qq
-apt-get install -y -qq software-properties-common
+apt-get update -qq < /dev/null
+apt-get install -y -qq software-properties-common < /dev/null
 
 info "Adding ondrej/php PPA for PHP 8.4..."
-add-apt-repository -y ppa:ondrej/php
-apt-get update -qq
+add-apt-repository -y ppa:ondrej/php < /dev/null
+apt-get update -qq < /dev/null
 
 PHP_VER="8.4"
 
@@ -161,10 +161,10 @@ apt-get install -y -qq \
     "php${PHP_VER}-zip" \
     "php${PHP_VER}-bcmath" \
     "php${PHP_VER}-tokenizer" \
-    "php${PHP_VER}-intl"
+    "php${PHP_VER}-intl" < /dev/null
 
 info "Installing nginx, MySQL, and utilities..."
-apt-get install -y -qq nginx mariadb-server curl unzip git certbot python3-certbot-nginx
+apt-get install -y -qq nginx mariadb-server curl unzip git certbot python3-certbot-nginx < /dev/null
 
 # Stop nginx immediately – it auto-starts with the default site after install.
 # We'll configure and start it properly below.
@@ -176,13 +176,13 @@ if ! command -v node &>/dev/null; then
     curl -fsSL https://deb.nodesource.com/setup_lts.x -o /tmp/nodesource-setup.sh
     bash /tmp/nodesource-setup.sh &>/dev/null < /dev/null
     rm -f /tmp/nodesource-setup.sh
-    apt-get install -y -qq nodejs
+    apt-get install -y -qq nodejs < /dev/null
 fi
 
 # Composer
 if ! command -v composer &>/dev/null; then
     info "Installing Composer..."
-    curl -sS https://getcomposer.org/download/latest-stable/composer.phar -o /usr/local/bin/composer
+    curl -sS https://getcomposer.org/download/latest-stable/composer.phar -o /usr/local/bin/composer < /dev/null
     chmod +x /usr/local/bin/composer
 fi
 
