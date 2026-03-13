@@ -100,7 +100,12 @@ A full-featured golf league management application built with Laravel. Manage le
 
 The install script sets up everything on a fresh Debian/Ubuntu server: PHP 8.4, Nginx, MariaDB, Node.js, Composer, and the Laravel application.
 
-**Option 1 — Clone first:**
+**Option 1 — One-line install:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/ptmuldoon/Laravel-Golf/main/install.sh | sudo bash
+```
+
+**Option 2 — Clone first:**
 ```bash
 git clone https://github.com/ptmuldoon/Laravel-Golf.git
 cd Laravel-Golf && sudo bash install.sh
