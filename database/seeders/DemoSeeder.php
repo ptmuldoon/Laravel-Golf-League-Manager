@@ -407,8 +407,8 @@ class DemoSeeder extends Seeder
     private function seedScheduleAndScores(League $league, Team $teamA, Team $teamB, int $courseId): void
     {
         $teebox = 'White';
-        $completedWeeks = 3;
-        $startDate = Carbon::parse('2025-08-05'); // Past dates so scores make sense
+        $completedWeeks = 5;
+        $startDate = Carbon::parse('2026-05-05'); // Match league start date
 
         // Get players per team
         $teamAPlayerIds = DB::table('team_players')->where('team_id', $teamA->id)->pluck('player_id')->toArray();
@@ -643,7 +643,7 @@ class DemoSeeder extends Seeder
                     'updated_at'  => now(),
                 ]);
 
-                $matchDate = Carbon::parse('2025-08-05')->addWeeks($week - 1)->format('Y-m-d');
+                $matchDate = Carbon::parse('2026-05-05')->addWeeks($week - 1)->format('Y-m-d');
                 DB::table('league_finances')->insert([
                     'league_id'      => $league->id,
                     'player_id'      => $winnerId,

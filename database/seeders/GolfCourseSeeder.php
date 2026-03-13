@@ -69,61 +69,6 @@ class GolfCourseSeeder extends Seeder
                     ['name' => 'Red', 'slope' => 125.0, 'rating' => 68.0],
                 ],
             ],
-            [
-                'name' => 'Bethpage Black',
-                'address' => '99 Quaker Meeting House Rd, Farmingdale, NY 11735',
-                'address_link' => 'https://maps.google.com/?q=Bethpage+Black',
-                'teeboxes' => [
-                    ['name' => 'Black', 'slope' => 155.0, 'rating' => 77.5],
-                    ['name' => 'Blue', 'slope' => 150.0, 'rating' => 75.3],
-                    ['name' => 'White', 'slope' => 142.0, 'rating' => 72.5],
-                    ['name' => 'Red', 'slope' => 135.0, 'rating' => 70.1],
-                ],
-            ],
-            [
-                'name' => 'TPC Sawgrass',
-                'address' => '110 Championship Way, Ponte Vedra Beach, FL 32082',
-                'address_link' => 'https://maps.google.com/?q=TPC+Sawgrass',
-                'teeboxes' => [
-                    ['name' => 'Black', 'slope' => 144.0, 'rating' => 75.3],
-                    ['name' => 'Blue', 'slope' => 140.0, 'rating' => 73.6],
-                    ['name' => 'White', 'slope' => 134.0, 'rating' => 71.0],
-                    ['name' => 'Red', 'slope' => 128.0, 'rating' => 68.5],
-                ],
-            ],
-            [
-                'name' => 'Whistling Straits',
-                'address' => 'N8501 Lakeshore Rd, Sheboygan, WI 53083',
-                'address_link' => 'https://maps.google.com/?q=Whistling+Straits',
-                'teeboxes' => [
-                    ['name' => 'Black', 'slope' => 151.0, 'rating' => 76.8],
-                    ['name' => 'Blue', 'slope' => 146.0, 'rating' => 74.7],
-                    ['name' => 'White', 'slope' => 138.0, 'rating' => 71.9],
-                    ['name' => 'Red', 'slope' => 132.0, 'rating' => 69.4],
-                ],
-            ],
-            [
-                'name' => 'Oakmont Country Club',
-                'address' => '1233 Hulton Rd, Oakmont, PA 15139',
-                'address_link' => 'https://maps.google.com/?q=Oakmont+Country+Club',
-                'teeboxes' => [
-                    ['name' => 'Black', 'slope' => 152.0, 'rating' => 77.0],
-                    ['name' => 'Blue', 'slope' => 147.0, 'rating' => 74.9],
-                    ['name' => 'White', 'slope' => 140.0, 'rating' => 72.3],
-                    ['name' => 'Red', 'slope' => 133.0, 'rating' => 69.7],
-                ],
-            ],
-            [
-                'name' => 'Shinnecock Hills Golf Club',
-                'address' => '200 Tuckahoe Rd, Southampton, NY 11968',
-                'address_link' => 'https://maps.google.com/?q=Shinnecock+Hills+Golf+Club',
-                'teeboxes' => [
-                    ['name' => 'Black', 'slope' => 146.0, 'rating' => 75.7],
-                    ['name' => 'Blue', 'slope' => 142.0, 'rating' => 73.9],
-                    ['name' => 'White', 'slope' => 136.0, 'rating' => 71.4],
-                    ['name' => 'Red', 'slope' => 129.0, 'rating' => 68.8],
-                ],
-            ],
         ];
 
         // Standard 18-hole par layout (typical championship course)
