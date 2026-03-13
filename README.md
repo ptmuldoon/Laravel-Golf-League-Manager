@@ -143,7 +143,7 @@ Beyond the standard Laravel variables, the app uses:
 | `SHOW_LOGO` | Show/hide the site logo on the home page (default: `false`) |
 | `SHOW_ICONS` | Show/hide the beer mug icons on the home page (default: `false`) |
 
-Google Drive backup credentials are uploaded through the admin UI (service account JSON).
+Google Drive backups use OAuth2 authentication via `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_DRIVE_REFRESH_TOKEN`.
 
 ## User Roles
 
