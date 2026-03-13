@@ -426,7 +426,7 @@ set_env DB_USERNAME     "${DB_USERNAME}"
 set_env DB_PASSWORD     "\"${DB_PASSWORD}\""
 
 info "Installing Composer dependencies..."
-COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-interaction --no-scripts -q
+COMPOSER_ALLOW_SUPERUSER=1 composer install --optimize-autoloader --no-interaction --no-scripts -q
 
 info "Generating application key..."
 php artisan key:generate --force

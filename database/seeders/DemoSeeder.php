@@ -191,14 +191,12 @@ class DemoSeeder extends Seeder
 
         $players = [];
         foreach ($demoPlayers as $i => $p) {
-            $areaCodes = ['716', '585', '607', '315', '518'];
-            $areaCode = $areaCodes[array_rand($areaCodes)];
-            $phone = $areaCode . '-' . rand(200, 999) . '-' . str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT);
+            $areaCode = fake()->randomElement(['716', '585', '607', '315', '518']);
             $player = Player::create([
                 'first_name'    => $p['first_name'],
                 'last_name'     => $p['last_name'],
                 'email'         => strtolower($p['first_name'] . '.' . $p['last_name']) . '@demo.com',
-                'phone_number'  => $phone,
+                'phone_number'  => $areaCode . '-' . fake()->numerify('###-####'),
                 'email_enabled' => true,
                 'sms_enabled'   => true,
             ]);
