@@ -77,10 +77,12 @@ A full-featured golf league management application built with Laravel. Manage le
 
 ## Screenshots
 
-![Home Page](docs/screenshots/home.png)
-![Schedule](docs/screenshots/full-schedule.png)
-![Print Scorecards](docs/screenshots/print-scorecards.png)
-![League Settings](docs/screenshots/league-settings.png)
+<p>
+  <img src="docs/screenshots/home.png" width="24%" alt="Home Page">
+  <img src="docs/screenshots/full-schedule.png" width="24%" alt="Schedule">
+  <img src="docs/screenshots/print-scorecards.png" width="24%" alt="Print Scorecards">
+  <img src="docs/screenshots/league-settings.png" width="24%" alt="League Settings">
+</p>
 
 ## Tech Stack
 
