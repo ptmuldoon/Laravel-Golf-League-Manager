@@ -5,13 +5,9 @@
     @include('partials.theme-vars')
     <link rel="icon" type="image/svg+xml" href="/images/logo3.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
+    <title>Register</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
@@ -21,12 +17,12 @@
             justify-content: center;
             padding: 20px;
         }
-        .login-container {
+        .register-container {
             background: white;
             padding: 40px;
             border-radius: 12px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-            max-width: 400px;
+            max-width: 500px;
             width: 100%;
         }
         h1 {
@@ -40,9 +36,7 @@
             text-align: center;
             margin-bottom: 30px;
         }
-        .form-group {
-            margin-bottom: 20px;
-        }
+        .form-group { margin-bottom: 20px; }
         label {
             display: block;
             font-weight: 600;
@@ -50,7 +44,9 @@
             margin-bottom: 8px;
         }
         input[type="email"],
-        input[type="password"] {
+        input[type="password"],
+        input[type="text"],
+        input[type="tel"] {
             width: 100%;
             padding: 12px 15px;
             border: 2px solid #e0e0e0;
@@ -75,21 +71,6 @@
             border-radius: 8px;
             margin-bottom: 20px;
             border: 1px solid #f5c6cb;
-        }
-        .remember-me {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 20px;
-        }
-        .remember-me input[type="checkbox"] {
-            width: auto;
-            cursor: pointer;
-        }
-        .remember-me label {
-            margin-bottom: 0;
-            cursor: pointer;
-            font-weight: normal;
         }
         .btn {
             width: 100%;
@@ -117,66 +98,90 @@
             text-decoration: none;
             font-weight: 600;
         }
-        .back-link a:hover {
-            text-decoration: underline;
+        .back-link a:hover { text-decoration: underline; }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .help-text {
+            font-size: 0.85em;
+            color: #888;
+            margin-top: 5px;
         }
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <h1>Sign In</h1>
-        <p class="subtitle">Sign in to your account</p>
+    <div class="register-container">
+        <h1>Create Account</h1>
+        <p class="subtitle">Register to track your scores and stats</p>
 
         @if ($errors->any())
             <div class="error-box">
                 @foreach ($errors->all() as $error)
-                    {{ $error }}
+                    <div>{{ $error }}</div>
                 @endforeach
             </div>
         @endif
 
-        @if (session('error'))
-            <div class="error-box">
-                {{ session('error') }}
-            </div>
-        @endif
-
-        <form action="{{ route('login.post') }}" method="POST">
+        <form action="{{ route('register.post') }}" method="POST">
             @csrf
 
-            <div class="form-group">
-                <label for="email">Email Address</label>
-                <input type="email" id="email" name="email" value="{{ old('email') }}" required autofocus>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>First Name <span style="color: #dc3545;">*</span></label>
+                    <input type="text" name="first_name" value="{{ old('first_name') }}" required placeholder="John">
+                    @error('first_name')
+                        <div class="error">{{ $message }}</div>
+                    @enderror
+                </div>
+                <div class="form-group">
+                    <label>Last Name <span style="color: #dc3545;">*</span></label>
+                    <input type="text" name="last_name" value="{{ old('last_name') }}" required placeholder="Smith">
+                    @error('last_name')
+                        <div class="error">{{ $message }}</div>
+                    @enderror
+                </div>
             </div>
 
             <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" name="password" required>
+                <label>Email Address <span style="color: #dc3545;">*</span></label>
+                <input type="email" name="email" value="{{ old('email') }}" required placeholder="you@example.com">
+                <div class="help-text">If you're already in a league, use the email your league administrator has on file to automatically link your account.</div>
+                @error('email')
+                    <div class="error">{{ $message }}</div>
+                @enderror
             </div>
 
-            <div class="remember-me">
-                <input type="checkbox" id="remember" name="remember">
-                <label for="remember">Remember me</label>
+            <div class="form-group">
+                <label>Phone Number <span style="color: #888; font-weight: normal;">(optional)</span></label>
+                <input type="tel" name="phone_number" value="{{ old('phone_number') }}" placeholder="(555) 123-4567">
             </div>
 
-            <button type="submit" class="btn">Sign In</button>
+            <div class="form-group">
+                <label>Password <span style="color: #dc3545;">*</span></label>
+                <input type="password" name="password" required placeholder="Minimum 8 characters">
+                @error('password')
+                    <div class="error">{{ $message }}</div>
+                @enderror
+            </div>
+
+            <div class="form-group">
+                <label>Confirm Password <span style="color: #dc3545;">*</span></label>
+                <input type="password" name="password_confirmation" required placeholder="Confirm your password">
+            </div>
+
+            <button type="submit" class="btn">Create Account</button>
         </form>
 
-        <div style="text-align: center; margin-top: 15px;">
-            <a href="{{ route('password.request') }}" style="color: var(--primary-color); text-decoration: none; font-size: 0.9em;">Forgot your password?</a>
+        <div class="back-link" style="margin-top: 15px;">
+            <span style="color: #666;">Already have an account?</span>
+            <a href="{{ route('login') }}">Sign In</a>
         </div>
-
-        @if(\App\Models\SiteSetting::get('registration_enabled', '1') === '1')
-        <div style="text-align: center; margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
-            <span style="color: #666;">Don't have an account?</span>
-            <a href="{{ route('register') }}" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Register</a>
-        </div>
-        @endif
 
         <div class="back-link">
             <a href="{{ route('home') }}">← Back to Home</a>
         </div>
-
     </div>
 </body>
 </html>

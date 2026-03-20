@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
+use App\Models\SiteSetting;
 
 class AuthController extends Controller
 {
@@ -15,7 +16,13 @@ class AuthController extends Controller
     public function showLoginForm()
     {
         if (Auth::check()) {
-            return redirect()->route('admin.dashboard');
+            $user = Auth::user();
+            if ($user->isAdmin()) {
+                return redirect()->route('admin.dashboard');
+            }
+            if ($user->isPlayer()) {
+                return redirect()->route('player.dashboard');
+            }
         }
         return view('auth.login');
     }
@@ -40,10 +47,15 @@ class AuthController extends Controller
                 return redirect()->intended(route('admin.dashboard'));
             }
 
-            // Non-admin users logout immediately
+            // Check if user is a player
+            if (Auth::user()->isPlayer()) {
+                return redirect()->intended(route('player.dashboard'));
+            }
+
+            // Non-admin, non-player users logout immediately
             Auth::logout();
             return back()->withErrors([
-                'email' => 'You do not have admin access.',
+                'email' => 'Your account does not have access.',
             ])->onlyInput('email');
         }
 

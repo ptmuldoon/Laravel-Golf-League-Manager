@@ -38,7 +38,12 @@ class SuperAdminController extends Controller
 
         $backups = $this->getBackupFiles();
 
-        return view('admin.super', compact('users', 'currentTheme', 'backupSettings', 'backups'));
+        $siteSettings = [
+            'registration_enabled' => SiteSetting::get('registration_enabled', '1'),
+            'player_score_posting_enabled' => SiteSetting::get('player_score_posting_enabled', '1'),
+        ];
+
+        return view('admin.super', compact('users', 'currentTheme', 'backupSettings', 'backups', 'siteSettings'));
     }
 
     public function backup()
@@ -422,5 +427,13 @@ class SuperAdminController extends Controller
         SiteSetting::set('theme_secondary_color', $validated['secondary_color']);
 
         return redirect()->route('admin.super.index')->with('success', 'Site theme updated successfully.');
+    }
+
+    public function updateSiteSettings(Request $request)
+    {
+        SiteSetting::set('registration_enabled', $request->input('registration_enabled', '0'));
+        SiteSetting::set('player_score_posting_enabled', $request->input('player_score_posting_enabled', '0'));
+
+        return redirect()->route('admin.super.index')->with('success', 'Site settings updated successfully.');
     }
 }

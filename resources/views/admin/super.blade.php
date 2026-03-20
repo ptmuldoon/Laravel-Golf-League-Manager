@@ -155,6 +155,41 @@
             <div class="alert-error">{{ session('error') }}</div>
         @endif
 
+        {{-- Site Settings --}}
+        <div class="content-section">
+            <h2 class="section-title">Site Settings</h2>
+            <form action="{{ route('admin.super.site-settings') }}" method="POST">
+                @csrf
+                <div class="db-actions">
+                    <div class="db-card">
+                        <h3>User Registration</h3>
+                        <p>Allow new users/players to register accounts on the website.</p>
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin-top: 10px;">
+                            <input type="hidden" name="registration_enabled" value="0">
+                            <input type="checkbox" name="registration_enabled" value="1"
+                                {{ ($siteSettings['registration_enabled'] ?? '1') === '1' ? 'checked' : '' }}
+                                style="width: 20px; height: 20px; cursor: pointer;">
+                            <span style="font-weight: 600; color: #333;">Enable Registration</span>
+                        </label>
+                    </div>
+                    <div class="db-card">
+                        <h3>Player Score Posting</h3>
+                        <p>Allow registered players to post their own scores/scorecards.</p>
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin-top: 10px;">
+                            <input type="hidden" name="player_score_posting_enabled" value="0">
+                            <input type="checkbox" name="player_score_posting_enabled" value="1"
+                                {{ ($siteSettings['player_score_posting_enabled'] ?? '1') === '1' ? 'checked' : '' }}
+                                style="width: 20px; height: 20px; cursor: pointer;">
+                            <span style="font-weight: 600; color: #333;">Enable Score Posting</span>
+                        </label>
+                    </div>
+                </div>
+                <div style="margin-top: 15px;">
+                    <button type="submit" class="btn btn-primary">Save Settings</button>
+                </div>
+            </form>
+        </div>
+
         {{-- Database Management --}}
         <div class="content-section">
             <h2 class="section-title">Database Management</h2>

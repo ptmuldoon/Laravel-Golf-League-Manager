@@ -684,9 +684,11 @@
         @auth
             @if(auth()->user()->isAdmin())
                 <a href="{{ route('admin.dashboard') }}" class="admin-link" title="Admin Dashboard">⚙️</a>
+            @elseif(auth()->user()->isPlayer())
+                <a href="{{ route('player.dashboard') }}" class="admin-link" title="My Dashboard">👤</a>
             @endif
         @else
-            <a href="{{ route('login') }}" class="admin-link" title="Admin Login">🔐</a>
+            <a href="{{ route('login') }}" class="admin-link" title="Login">🔐</a>
         @endauth
 
         <!-- Standings per League -->
@@ -719,6 +721,7 @@
                                     <a href="#" onclick="event.preventDefault(); showQuickLink('schedule', {{ $league->id }})">Full Schedule</a>
                                     <a href="#" onclick="event.preventDefault(); showQuickLink('hole-stats', {{ $league->id }})">Hole Stats</a>
                                     <a href="#" onclick="event.preventDefault(); showQuickLink('player-stats', {{ $league->id }})">Player Stats</a>
+                                    <a href="#" onclick="event.preventDefault(); showQuickLink('player-history', {{ $league->id }})">Player History</a>
                                     <a href="#" onclick="event.preventDefault(); openSubRequestModal({{ $league->id }})">Sub Request</a>
                                 </div>
                             </div>
@@ -1168,6 +1171,18 @@
             }
         });
 
+        function activateScripts(container) {
+            container.querySelectorAll('script').forEach(function(oldScript) {
+                var newScript = document.createElement('script');
+                if (oldScript.src) {
+                    newScript.src = oldScript.src;
+                } else {
+                    newScript.textContent = oldScript.textContent;
+                }
+                oldScript.parentNode.replaceChild(newScript, oldScript);
+            });
+        }
+
         function showQuickLink(view, leagueId) {
             var homeContent = document.getElementById('home-content-' + leagueId);
             var dynamicContent = document.getElementById('dynamic-content-' + leagueId);
@@ -1187,6 +1202,7 @@
             var cacheKey = view + '-' + leagueId;
             if (quickLinkCache[cacheKey]) {
                 dynamicContent.innerHTML = quickLinkCache[cacheKey];
+                activateScripts(dynamicContent);
                 return;
             }
 
@@ -1198,6 +1214,7 @@
                 .then(function(html) {
                     quickLinkCache[cacheKey] = html;
                     dynamicContent.innerHTML = html;
+                    activateScripts(dynamicContent);
                 })
                 .catch(function() {
                     dynamicContent.innerHTML = '<div class="content-section" style="text-align: center; padding: 40px; color: #dc3545;">Failed to load content.</div>';

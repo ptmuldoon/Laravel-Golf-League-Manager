@@ -26,6 +26,7 @@ class User extends Authenticatable
         'is_super_admin',
         'email_notifications',
         'sms_notifications',
+        'player_id',
     ];
 
     /**
@@ -66,5 +67,15 @@ class User extends Authenticatable
     public function isSuperAdmin(): bool
     {
         return $this->is_super_admin;
+    }
+
+    public function isPlayer(): bool
+    {
+        return $this->player_id !== null && !$this->is_admin;
+    }
+
+    public function player()
+    {
+        return $this->belongsTo(Player::class);
     }
 }

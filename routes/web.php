@@ -14,12 +14,18 @@ use App\Http\Controllers\Admin\ScoringSettingsController;
 use App\Http\Controllers\LeagueSegmentController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Admin\SuperAdminController;
+use App\Http\Controllers\RegistrationController;
+use App\Http\Controllers\PlayerDashboardController;
 use Illuminate\Support\Facades\Route;
 
 // Authentication routes
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.post');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+// Registration routes
+Route::get('/register', [RegistrationController::class, 'showRegistrationForm'])->name('register');
+Route::post('/register', [RegistrationController::class, 'register'])->name('register.post');
 
 // Password Reset routes
 Route::get('/forgot-password', [PasswordResetController::class, 'showLinkRequestForm'])->name('password.request');
@@ -34,6 +40,13 @@ Route::middleware('auth')->group(function () {
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::get('/profile/password', [ProfileController::class, 'editPassword'])->name('profile.password.edit');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
+});
+
+// Player routes (for registered players)
+Route::middleware('player')->prefix('player')->name('player.')->group(function () {
+    Route::get('/dashboard', [PlayerDashboardController::class, 'dashboard'])->name('dashboard');
+    Route::get('/score-entry', [PlayerDashboardController::class, 'scoreEntry'])->name('score-entry');
+    Route::post('/score-entry', [PlayerDashboardController::class, 'storeScore'])->name('score-entry.store');
 });
 
 // Admin routes (protected by admin middleware)
@@ -156,6 +169,7 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
         Route::post('/users/{id}/role', [SuperAdminController::class, 'updateUserRole'])->name('users.role');
         Route::post('/users/{id}/password', [SuperAdminController::class, 'resetUserPassword'])->name('users.password');
         Route::post('/theme', [SuperAdminController::class, 'updateTheme'])->name('theme.update');
+        Route::post('/site-settings', [SuperAdminController::class, 'updateSiteSettings'])->name('site-settings');
         // Backup delivery routes
         Route::post('/backup-delivery', [SuperAdminController::class, 'updateBackupDelivery'])->name('backup.delivery');
         Route::post('/backup-test-email', [SuperAdminController::class, 'testBackupEmail'])->name('backup.testEmail');
@@ -180,6 +194,7 @@ Route::get('/leagues/{league_id}/hole-stats-partial', [LeagueController::class, 
 Route::get('/leagues/{league_id}/week-results-partial/{week}', [HomeController::class, 'weekResultsPartial'])->name('leagues.weekResultsPartial');
 Route::get('/leagues/{league_id}/schedule-partial', [LeagueController::class, 'schedulePartial'])->name('leagues.schedulePartial');
 Route::get('/leagues/{league_id}/player-stats-partial', [LeagueController::class, 'playerStatsPartial'])->name('leagues.playerStatsPartial');
+Route::get('/leagues/{league_id}/player-history-partial', [LeagueController::class, 'playerHistoryPartial'])->name('leagues.playerHistoryPartial');
 
 // Import routes (admin only)
 Route::middleware('admin')->prefix('import')->name('import.')->group(function () {

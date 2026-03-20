@@ -54,6 +54,16 @@ class Player extends Model
             ->withTimestamps();
     }
 
+    public function user()
+    {
+        return $this->hasOne(User::class);
+    }
+
+    public function leagues()
+    {
+        return $this->belongsToMany(League::class, 'league_players');
+    }
+
     /**
      * Get the player's full name
      */

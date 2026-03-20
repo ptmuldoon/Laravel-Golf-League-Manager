@@ -146,8 +146,8 @@
                     <h4>Send Test Email</h4>
                     <div class="test-email-row">
                         <div class="form-group">
-                            <label for="test_email">Email Address</label>
-                            <input type="email" name="test_email" id="test_email" placeholder="Enter email address for test">
+                            <label for="test_email">Email Address(es)</label>
+                            <input type="text" name="test_email" id="test_email" placeholder="Enter email(s), comma-separated">
                         </div>
                         <button type="submit" class="btn btn-warning" onclick="return sendTest()">Send Test</button>
                     </div>

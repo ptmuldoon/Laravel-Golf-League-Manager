@@ -1790,7 +1790,7 @@ class LeagueController extends Controller
     {
         $request->validate([
             'week_number' => 'required|integer|min:1',
-            'test_email' => 'nullable|email|max:255',
+            'test_email' => 'nullable|string|max:500',
         ]);
         $weekNumber = (int) $request->input('week_number');
         $testEmail = $request->input('test_email');
@@ -1798,7 +1798,13 @@ class LeagueController extends Controller
         $league = League::with(['teams.players', 'golfCourse', 'segments.teams'])->findOrFail($leagueId);
 
         if ($testEmail) {
-            $recipients = [$testEmail];
+            $recipients = array_filter(array_map('trim', explode(',', $testEmail)));
+            foreach ($recipients as $email) {
+                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    return redirect()->route('admin.leagues.emailResults', $leagueId)
+                        ->withErrors(['error' => "Invalid email address: {$email}"]);
+                }
+            }
         } else {
             $recipients = $league->players()
                 ->whereNotNull('email')
@@ -1825,7 +1831,7 @@ class LeagueController extends Controller
             );
 
             if ($testEmail) {
-                Mail::to($testEmail)->send($mailable);
+                Mail::to($recipients)->send($mailable);
             } else {
                 Mail::to(config('mail.from.address'))
                     ->bcc($recipients)
@@ -1833,7 +1839,7 @@ class LeagueController extends Controller
             }
 
             $successMsg = $testEmail
-                ? "Test email for Week {$weekNumber} results sent to {$testEmail}!"
+                ? "Test email for Week {$weekNumber} results sent to " . implode(', ', $recipients) . "!"
                 : "Week {$weekNumber} results emailed to " . count($recipients) . " players!";
 
             return redirect()->route('admin.leagues.emailResults', $leagueId)
@@ -1865,14 +1871,20 @@ class LeagueController extends Controller
         $validated = $request->validate([
             'subject' => 'required|string|max:255',
             'message_body' => 'required|string|max:5000',
-            'test_email' => 'nullable|email|max:255',
+            'test_email' => 'nullable|string|max:500',
         ]);
 
         $league = League::with('players')->findOrFail($leagueId);
         $testEmail = $request->input('test_email');
 
         if ($testEmail) {
-            $recipients = [$testEmail];
+            $recipients = array_filter(array_map('trim', explode(',', $testEmail)));
+            foreach ($recipients as $email) {
+                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    return redirect()->route('admin.leagues.emailMessage', $leagueId)
+                        ->withErrors(['error' => "Invalid email address: {$email}"]);
+                }
+            }
         } else {
             $recipients = $league->players()
                 ->whereNotNull('email')
@@ -1892,7 +1904,7 @@ class LeagueController extends Controller
             $mailable = new LeagueMessageEmail($league, $validated['subject'], $validated['message_body']);
 
             if ($testEmail) {
-                Mail::to($testEmail)->send($mailable);
+                Mail::to($recipients)->send($mailable);
             } else {
                 Mail::to(config('mail.from.address'))
                     ->bcc($recipients)
@@ -1900,7 +1912,7 @@ class LeagueController extends Controller
             }
 
             $successMsg = $testEmail
-                ? "Test message sent to {$testEmail}!"
+                ? "Test message sent to " . implode(', ', $recipients) . "!"
                 : "Message emailed to " . count($recipients) . " players!";
 
             return redirect()->route('admin.leagues.emailMessage', $leagueId)
@@ -2243,9 +2255,9 @@ class LeagueController extends Controller
 
     public function playerStatsPartial($leagueId)
     {
-        $league = League::with(['teams.players'])->findOrFail($leagueId);
+        $league = League::with(['teams', 'players'])->findOrFail($leagueId);
 
-        $players = $league->teams->flatMap->players->unique('id')->sortBy('name')->values();
+        $players = $league->players->sortBy('name')->values();
 
         // Get all completed matches with scores for this league
         $completedMatches = LeagueMatch::where('league_id', $league->id)
@@ -2349,6 +2361,105 @@ class LeagueController extends Controller
         }
 
         return view('leagues.player-stats-partial', compact('league', 'players', 'playerWeekData', 'playerNineSummary'));
+    }
+
+    public function playerHistoryPartial($leagueId)
+    {
+        $league = League::with(['teams', 'players'])->findOrFail($leagueId);
+
+        $players = $league->players->sortBy('name')->values();
+
+        $calculator = app(HandicapCalculator::class);
+
+        // Build per-player round history and handicap chart data
+        $playerRounds = [];
+        $playerChartData = [];
+        $playerHandicapData = [];
+        $playerSummary = [];
+
+        foreach ($players as $player) {
+            $currentHandicap = $player->currentHandicap();
+            $currentHI = $currentHandicap ? (float) $currentHandicap->handicap_index : null;
+
+            $rounds = $player->rounds()->with(['golfCourse', 'scores'])->orderBy('played_at')->get()->map(function ($round) use ($calculator, $currentHI) {
+                $round->total_score = $round->scores->sum('strokes');
+
+                $hasNetScores = $round->scores->contains(fn($s) => $s->net_score !== null);
+                $round->net_score = $hasNetScores ? $round->scores->sum('net_score') : null;
+
+                $isNineHole = ($round->holes_played ?? 18) == 9;
+                $slopeRating = $calculator->getSlopeAndRating($round);
+                $hasStoredAG = $round->scores->contains(fn($s) => $s->adjusted_gross !== null);
+
+                if ($slopeRating && $hasStoredAG) {
+                    $totalAG = $round->scores->sum('adjusted_gross');
+                    if ($isNineHole && $currentHI !== null) {
+                        $diff9 = $calculator->scoreDifferential9($totalAG, $slopeRating['rating'], $slopeRating['slope']);
+                        $round->scoring_differential = round($diff9 + $calculator->expectedNineHoleDifferential($currentHI), 1);
+                    } elseif (!$isNineHole) {
+                        $round->scoring_differential = round($calculator->scoreDifferential18($totalAG, $slopeRating['rating'], $slopeRating['slope']), 1);
+                    } else {
+                        $round->scoring_differential = null;
+                    }
+                } else {
+                    $roundDiff = $calculator->computeRoundDifferential($round, $currentHI);
+                    if ($roundDiff && $roundDiff['is_nine_hole'] && $currentHI !== null) {
+                        $round->scoring_differential = round($roundDiff['differential'] + $calculator->expectedNineHoleDifferential($currentHI), 1);
+                    } elseif ($roundDiff && !$roundDiff['is_nine_hole']) {
+                        $round->scoring_differential = round($roundDiff['differential'], 1);
+                    } else {
+                        $round->scoring_differential = null;
+                    }
+                }
+
+                if ($round->holes_played == 9) {
+                    $holeNumbers = $round->scores->pluck('hole_number')->toArray();
+                    $round->nine_type = !empty($holeNumbers) ? (max($holeNumbers) <= 9 ? 'Front 9' : 'Back 9') : '9 holes';
+                }
+
+                return $round;
+            });
+
+            $playerRounds[$player->id] = $rounds;
+
+            // Score chart data
+            $playerChartData[$player->id] = $rounds->map(function ($round) {
+                return [
+                    'date' => \Carbon\Carbon::parse($round->played_at)->format('M d, Y'),
+                    'score' => $round->total_score,
+                    'course' => $round->golfCourse->name,
+                    'holes' => $round->holes_played ?? 18,
+                ];
+            })->values()->toArray();
+
+            // Handicap history chart data
+            $playerHandicapData[$player->id] = $player->handicapHistory()->orderBy('calculation_date')->get()->map(function ($h) {
+                $diffs = $h->score_differentials;
+                return [
+                    'date' => \Carbon\Carbon::parse($h->calculation_date)->format('M d, Y'),
+                    'handicap' => (float) $h->handicap_index,
+                    'rounds_used' => $h->rounds_used,
+                    'total_differentials' => is_array($diffs) ? count($diffs) : 0,
+                ];
+            })->values()->toArray();
+
+            // Summary stats
+            $rounds18 = $rounds->filter(fn($r) => ($r->holes_played ?? 18) == 18);
+            $rounds9 = $rounds->filter(fn($r) => ($r->holes_played ?? 18) == 9);
+            $playerSummary[$player->id] = [
+                'total_rounds' => $rounds->count(),
+                'avg_18' => $rounds18->count() > 0 ? round($rounds18->avg('total_score'), 1) : null,
+                'avg_9' => $rounds9->count() > 0 ? round($rounds9->avg('total_score'), 1) : null,
+                'low_18' => $rounds18->count() > 0 ? $rounds18->min('total_score') : null,
+                'high_18' => $rounds18->count() > 0 ? $rounds18->max('total_score') : null,
+                'low_9' => $rounds9->count() > 0 ? $rounds9->min('total_score') : null,
+                'rounds_18' => $rounds18->count(),
+                'rounds_9' => $rounds9->count(),
+                'current_handicap' => $currentHandicap,
+            ];
+        }
+
+        return view('leagues.player-history-partial', compact('league', 'players', 'playerRounds', 'playerChartData', 'playerHandicapData', 'playerSummary'));
     }
 
     public function schedulePartial($leagueId)
