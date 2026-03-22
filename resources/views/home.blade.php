@@ -726,7 +726,6 @@
                                 </div>
                             </div>
                         </div>
-                        Results Thru Week {{ isset($completedWeeks[$league->id]) && $completedWeeks[$league->id]->isNotEmpty() ? $completedWeeks[$league->id]->last() : '—' }}
                     </div>
                 </div>
 
@@ -737,7 +736,7 @@
                     <!-- Team Standings -->
                     <div class="content-section">
                         <h2 class="section-title" style="display: flex; justify-content: space-between; align-items: center;">
-                            <span>🏆 Team Standings</span>
+                            <span>🏆 Team Standings <span style="font-size: 0.55em; font-weight: normal; color: #888; margin-left: 8px;">Results Thru Week {{ isset($completedWeeks[$league->id]) && $completedWeeks[$league->id]->isNotEmpty() ? $completedWeeks[$league->id]->last() : '—' }}</span></span>
                             <span style="cursor: pointer; user-select: none; color: #e67e22; font-size: 0.6em;" onclick="toggleSection('team-standings-body-{{ $league->id }}')" id="toggle-team-standings-body-{{ $league->id }}">&#9650;</span>
                         </h2>
                         <div id="team-standings-body-{{ $league->id }}">
