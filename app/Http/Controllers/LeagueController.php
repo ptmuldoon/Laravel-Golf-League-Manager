@@ -1841,14 +1841,13 @@ class LeagueController extends Controller
 
             if ($testEmail) {
                 $mail = Mail::to($recipients);
+            } elseif (!empty($adminEmails)) {
+                $mail = Mail::to($adminEmails)
+                    ->bcc($recipients);
+                $mailable->replyTo($adminEmails);
             } else {
                 $mail = Mail::to(config('mail.from.address'))
                     ->bcc($recipients);
-            }
-
-            if (!empty($adminEmails)) {
-                $mail->cc($adminEmails);
-                $mailable->replyTo($adminEmails);
             }
 
             $mail->send($mailable);
@@ -1928,14 +1927,13 @@ class LeagueController extends Controller
 
             if ($testEmail) {
                 $mail = Mail::to($recipients);
+            } elseif (!empty($adminEmails)) {
+                $mail = Mail::to($adminEmails)
+                    ->bcc($recipients);
+                $mailable->replyTo($adminEmails);
             } else {
                 $mail = Mail::to(config('mail.from.address'))
                     ->bcc($recipients);
-            }
-
-            if (!empty($adminEmails)) {
-                $mail->cc($adminEmails);
-                $mailable->replyTo($adminEmails);
             }
 
             $mail->send($mailable);
