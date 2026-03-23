@@ -193,23 +193,7 @@ class PlayerDashboardController extends Controller
         }
 
         // Recalculate handicap
-        $snapshots = $calculator->computeHistoricalHandicaps($player);
-        if (!empty($snapshots)) {
-            HandicapHistory::where('player_id', $player->id)->delete();
-            $byDate = [];
-            foreach ($snapshots as $snapshot) {
-                $byDate[$snapshot['calculation_date']] = $snapshot;
-            }
-            foreach ($byDate as $date => $snapshot) {
-                HandicapHistory::create([
-                    'player_id' => $player->id,
-                    'calculation_date' => $date,
-                    'handicap_index' => $snapshot['handicap_index'],
-                    'rounds_used' => $snapshot['rounds_used'],
-                    'score_differentials' => $snapshot['score_differentials'],
-                ]);
-            }
-        }
+        $calculator->recalculateForPlayer($player);
 
         return redirect()->route('players.round', [$player->id, $round->id])
             ->with('success', 'Scorecard submitted successfully!');

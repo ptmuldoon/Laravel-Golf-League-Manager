@@ -270,6 +270,7 @@ class ImportController extends Controller
             $playerEmails = [];
 
             DB::transaction(function () use ($validRows, $format, $courseCache, &$roundCount, &$playerCount, &$updatedRoundCount, &$playerEmails) {
+                $affectedPlayerIds = [];
                 foreach ($validRows as $row) {
                     // Create or update player
                     $player = Player::updateOrCreate(
@@ -379,6 +380,15 @@ class ImportController extends Controller
                                 'net_score' => $holeData['net_score'],
                             ]);
                     }
+
+                    // Track player for handicap recalculation
+                    $affectedPlayerIds[$player->id] = $player;
+                }
+
+                // Recalculate handicaps for all affected players
+                $calculator = app(HandicapCalculator::class);
+                foreach ($affectedPlayerIds as $player) {
+                    $calculator->recalculateForPlayer($player);
                 }
             });
 

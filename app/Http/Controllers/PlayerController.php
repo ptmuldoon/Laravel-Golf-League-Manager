@@ -288,6 +288,9 @@ class PlayerController extends Controller
                 ]);
         }
 
+        // Recalculate handicap
+        $calculator->recalculateForPlayer($player);
+
         return redirect()->route('players.round', [$validated['player_id'], $round->id])
             ->with('success', 'Scorecard entered successfully!');
     }

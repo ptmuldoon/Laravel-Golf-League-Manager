@@ -349,48 +349,18 @@ class AdminController extends Controller
     {
         $calculator = new HandicapCalculator();
 
-        HandicapHistory::truncate();
-
         $players = Player::all();
-        $totalRecords = 0;
         $playersUpdated = 0;
 
         foreach ($players as $player) {
-            $snapshots = $calculator->computeHistoricalHandicaps($player);
-
-            if (empty($snapshots)) {
-                continue;
+            $calculator->recalculateForPlayer($player);
+            if ($player->currentHandicap()) {
+                $playersUpdated++;
             }
-
-            // Group by date — keep only the last computation per date
-            $byDate = [];
-            foreach ($snapshots as $snapshot) {
-                $byDate[$snapshot['calculation_date']] = $snapshot;
-            }
-
-            $records = [];
-            foreach ($byDate as $snapshot) {
-                $records[] = [
-                    'player_id' => $snapshot['player_id'],
-                    'calculation_date' => $snapshot['calculation_date'],
-                    'handicap_index' => $snapshot['handicap_index'],
-                    'rounds_used' => $snapshot['rounds_used'],
-                    'score_differentials' => json_encode($snapshot['score_differentials']),
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ];
-            }
-
-            foreach (array_chunk($records, 100) as $chunk) {
-                HandicapHistory::insert($chunk);
-            }
-
-            $totalRecords += count($records);
-            $playersUpdated++;
         }
 
         return redirect()->route('admin.players')
-            ->with('success', "Handicaps recomputed: {$playersUpdated} players updated, {$totalRecords} handicap records created.");
+            ->with('success', "Handicaps recomputed for {$playersUpdated} players.");
     }
 
     /**

@@ -540,6 +540,35 @@ class HandicapCalculator
     }
 
     /**
+     * Recalculate and store handicap history for a single player.
+     */
+    public function recalculateForPlayer(Player $player): void
+    {
+        $snapshots = $this->computeHistoricalHandicaps($player);
+
+        \App\Models\HandicapHistory::where('player_id', $player->id)->delete();
+
+        if (empty($snapshots)) {
+            return;
+        }
+
+        $byDate = [];
+        foreach ($snapshots as $snapshot) {
+            $byDate[$snapshot['calculation_date']] = $snapshot;
+        }
+
+        foreach ($byDate as $snapshot) {
+            \App\Models\HandicapHistory::create([
+                'player_id' => $snapshot['player_id'],
+                'calculation_date' => $snapshot['calculation_date'],
+                'handicap_index' => $snapshot['handicap_index'],
+                'rounds_used' => $snapshot['rounds_used'],
+                'score_differentials' => $snapshot['score_differentials'],
+            ]);
+        }
+    }
+
+    /**
      * Get course info for a round, keyed by hole number.
      */
     private function getCourseInfoForRound(Round $round): Collection

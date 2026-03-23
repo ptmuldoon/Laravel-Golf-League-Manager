@@ -731,31 +731,10 @@ class MatchController extends Controller
 
             // Recalculate handicaps for all affected players
             $handicapCalculator = app(HandicapCalculator::class);
-            $affectedPlayerIds = array_unique($affectedPlayerIds);
-
-            foreach ($affectedPlayerIds as $playerId) {
+            foreach (array_unique($affectedPlayerIds) as $playerId) {
                 $player = Player::find($playerId);
-                if (!$player) continue;
-
-                $snapshots = $handicapCalculator->computeHistoricalHandicaps($player);
-                if (empty($snapshots)) continue;
-
-                // Clear existing handicap history and rebuild
-                HandicapHistory::where('player_id', $playerId)->delete();
-
-                $byDate = [];
-                foreach ($snapshots as $snapshot) {
-                    $byDate[$snapshot['calculation_date']] = $snapshot;
-                }
-
-                foreach ($byDate as $snapshot) {
-                    HandicapHistory::create([
-                        'player_id' => $snapshot['player_id'],
-                        'calculation_date' => $snapshot['calculation_date'],
-                        'handicap_index' => $snapshot['handicap_index'],
-                        'rounds_used' => $snapshot['rounds_used'],
-                        'score_differentials' => $snapshot['score_differentials'],
-                    ]);
+                if ($player) {
+                    $handicapCalculator->recalculateForPlayer($player);
                 }
             }
         });
