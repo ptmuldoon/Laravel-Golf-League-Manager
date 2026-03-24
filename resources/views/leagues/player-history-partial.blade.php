@@ -66,7 +66,7 @@
                         <div style="margin-bottom: 25px; padding: 20px; background: #fafafa; border-radius: 10px; border: 1px solid #eee;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
                                 <h3 style="color: var(--primary-color); font-size: 1.1em; margin: 0;">Score History</h3>
-                                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
                                     <div style="display: flex; border-radius: 8px; overflow: hidden; border: 2px solid var(--primary-color);">
                                         <button class="ph-mode-toggle-{{ $league->id }}-{{ $player->id }}" data-mode="scores" onclick="switchPhMode({{ $league->id }}, {{ $player->id }}, 'scores')" style="padding: 6px 14px; border: none; cursor: pointer; font-weight: 600; font-size: 0.82em; transition: all 0.3s ease; background: var(--primary-color); color: white;">Scores</button>
                                         <button class="ph-mode-toggle-{{ $league->id }}-{{ $player->id }}" data-mode="handicap" onclick="switchPhMode({{ $league->id }}, {{ $player->id }}, 'handicap')" style="padding: 6px 14px; border: none; border-left: 1px solid var(--primary-color); cursor: pointer; font-weight: 600; font-size: 0.82em; transition: all 0.3s ease; background: white; color: var(--primary-color);">Handicap</button>
@@ -76,6 +76,14 @@
                                         <button class="ph-holes-toggle-{{ $league->id }}-{{ $player->id }}" data-holes="18" onclick="switchPhHoles({{ $league->id }}, {{ $player->id }}, '18')" style="padding: 6px 12px; border: none; border-left: 1px solid #e0e0e0; cursor: pointer; font-weight: 600; font-size: 0.82em; transition: all 0.3s ease; background: white; color: #666;">18</button>
                                         <button class="ph-holes-toggle-{{ $league->id }}-{{ $player->id }}" data-holes="9" onclick="switchPhHoles({{ $league->id }}, {{ $player->id }}, '9')" style="padding: 6px 12px; border: none; border-left: 1px solid #e0e0e0; cursor: pointer; font-weight: 600; font-size: 0.82em; transition: all 0.3s ease; background: white; color: #666;">9</button>
                                     </div>
+                                    <select id="ph-period-filter-{{ $league->id }}-{{ $player->id }}" onchange="switchPhPeriod({{ $league->id }}, {{ $player->id }}, this.value)" style="padding: 6px 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-weight: 600; font-size: 0.82em; cursor: pointer; background: white; color: #666;">
+                                        <option value="last20" selected>Last 20</option>
+                                        <option value="3m">Last 3 Months</option>
+                                        <option value="6m">Last 6 Months</option>
+                                        <option value="1y">Last Year</option>
+                                        <option value="ytd">This Year</option>
+                                        <option value="all">All Time</option>
+                                    </select>
                                 </div>
                             </div>
                             <div style="position: relative; height: 300px;">
@@ -145,6 +153,7 @@
     var phCharts = {};
     var phChartMode = {};
     var phHolesFilter = {};
+    var phPeriodFilter = {};
 
     function showPlayerHistory(leagueId) {
         var select = document.getElementById('ph-player-select-' + leagueId);
@@ -174,14 +183,34 @@
         if (phCharts[key]) return;
         phChartMode[key] = 'scores';
         phHolesFilter[key] = 'all';
+        phPeriodFilter[key] = 'last20';
         renderPhChart(leagueId, playerId);
     }
 
-    function getFilteredScores(playerId, holesFilter) {
+    function getPeriodCutoff(period) {
+        if (period === 'all') return null;
+        var now = new Date();
+        if (period === '3m') return new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+        if (period === '6m') return new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
+        if (period === '1y') return new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+        if (period === 'ytd') return new Date(now.getFullYear(), 0, 1);
+        return null;
+    }
+
+    function filterByPeriod(data, period) {
+        if (period === 'last20') return data.slice(-20);
+        var cutoff = getPeriodCutoff(period);
+        if (!cutoff) return data;
+        return data.filter(function(d) { return new Date(d.date) >= cutoff; });
+    }
+
+    function getFilteredScores(playerId, holesFilter, period) {
         var data = phScoreData[playerId] || [];
-        if (holesFilter === 'all') return data;
-        var target = parseInt(holesFilter);
-        return data.filter(function(d) { return d.holes === target; });
+        if (holesFilter !== 'all') {
+            var target = parseInt(holesFilter);
+            data = data.filter(function(d) { return d.holes === target; });
+        }
+        return filterByPeriod(data, period);
     }
 
     function renderPhChart(leagueId, playerId) {
@@ -193,9 +222,11 @@
 
         var mode = phChartMode[key] || 'scores';
 
+        var period = phPeriodFilter[key] || 'all';
+
         if (mode === 'scores') {
             var holesFilter = phHolesFilter[key] || 'all';
-            var filtered = getFilteredScores(playerId, holesFilter);
+            var filtered = getFilteredScores(playerId, holesFilter, period);
             if (filtered.length === 0) {
                 phCharts[key] = new Chart(canvas, { type: 'line', data: { labels: [], datasets: [] }, options: { responsive: true, maintainAspectRatio: false } });
                 return;
@@ -247,7 +278,7 @@
                 }
             });
         } else {
-            var hData = phHandicapData[playerId] || [];
+            var hData = filterByPeriod(phHandicapData[playerId] || [], period);
             if (hData.length === 0) {
                 phCharts[key] = new Chart(canvas, { type: 'line', data: { labels: [], datasets: [] }, options: { responsive: true, maintainAspectRatio: false } });
                 return;
@@ -333,6 +364,12 @@
             }
         });
 
+        renderPhChart(leagueId, playerId);
+    }
+
+    function switchPhPeriod(leagueId, playerId, period) {
+        var key = leagueId + '-' + playerId;
+        phPeriodFilter[key] = period;
         renderPhChart(leagueId, playerId);
     }
 </script>
