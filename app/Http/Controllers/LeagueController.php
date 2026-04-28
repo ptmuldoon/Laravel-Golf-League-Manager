@@ -2251,6 +2251,53 @@ class LeagueController extends Controller
     }
 
     /**
+     * Show how often each player has been scheduled at each tee time slot.
+     */
+    public function teeTimeDistribution($leagueId)
+    {
+        $league = League::with(['players'])->findOrFail($leagueId);
+
+        $matchPlayers = MatchPlayer::whereHas('match', function ($q) use ($leagueId) {
+                $q->where('league_id', $leagueId)->whereNotNull('tee_time');
+            })
+            ->with(['match:id,league_id,tee_time,week_number,match_date,status', 'player'])
+            ->get();
+
+        $teeTimes = $matchPlayers
+            ->pluck('match.tee_time')
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values();
+
+        $counts = [];
+        foreach ($matchPlayers as $mp) {
+            $tt = $mp->match->tee_time ?? null;
+            if (!$tt || !$mp->player_id) continue;
+            $counts[$mp->player_id][$tt] = ($counts[$mp->player_id][$tt] ?? 0) + 1;
+        }
+
+        $rows = $league->players->map(function ($player) use ($counts, $teeTimes) {
+            $playerCounts = $counts[$player->id] ?? [];
+            $row = [
+                'player' => $player,
+                'counts' => [],
+                'total' => 0,
+            ];
+            foreach ($teeTimes as $tt) {
+                $c = $playerCounts[$tt] ?? 0;
+                $row['counts'][$tt] = $c;
+                $row['total'] += $c;
+            }
+            return $row;
+        })->filter(fn($r) => $r['total'] > 0)
+          ->sortBy(fn($r) => strtolower($r['player']->name))
+          ->values();
+
+        return view('leagues.tee-time-distribution', compact('league', 'teeTimes', 'rows'));
+    }
+
+    /**
      * Return hole stats as an HTML partial for AJAX loading
      */
     public function holeStatsPartial($leagueId)
