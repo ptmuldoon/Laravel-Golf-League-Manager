@@ -712,20 +712,13 @@
                             {{ $league->name }}
                         </a>
                     </h2>
-                    <div style="color: #666; font-size: 0.95em; display: flex; align-items: center; gap: 12px;">
+                    <div style="color: #666; font-size: 0.95em; display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
                         <a href="#" onclick="event.preventDefault(); showQuickLink('home', {{ $league->id }})" class="quick-links-btn" style="text-decoration: none; display: inline-block;">Home</a>
-                        <div class="quick-links">
-                            <button class="quick-links-btn">Quick Links &#9662;</button>
-                            <div class="quick-links-menu">
-                                <div class="quick-links-menu-inner">
-                                    <a href="#" onclick="event.preventDefault(); showQuickLink('schedule', {{ $league->id }})">Full Schedule</a>
-                                    <a href="#" onclick="event.preventDefault(); showQuickLink('hole-stats', {{ $league->id }})">Hole Stats</a>
-                                    <a href="#" onclick="event.preventDefault(); showQuickLink('player-stats', {{ $league->id }})">Player Stats</a>
-                                    <a href="#" onclick="event.preventDefault(); showQuickLink('player-history', {{ $league->id }})">Player History</a>
-                                    <a href="#" onclick="event.preventDefault(); openSubRequestModal({{ $league->id }})">Sub Request</a>
-                                </div>
-                            </div>
-                        </div>
+                        <a href="#" onclick="event.preventDefault(); showQuickLink('schedule', {{ $league->id }})" class="quick-links-btn" style="text-decoration: none; display: inline-block;">Full Schedule</a>
+                        <a href="#" onclick="event.preventDefault(); showQuickLink('hole-stats', {{ $league->id }})" class="quick-links-btn" style="text-decoration: none; display: inline-block;">Hole Stats</a>
+                        <a href="#" onclick="event.preventDefault(); showQuickLink('player-stats', {{ $league->id }})" class="quick-links-btn" style="text-decoration: none; display: inline-block;">Player Stats</a>
+                        <a href="#" onclick="event.preventDefault(); showQuickLink('player-history', {{ $league->id }})" class="quick-links-btn" style="text-decoration: none; display: inline-block;">Player History</a>
+                        <a href="#" onclick="event.preventDefault(); openSubRequestModal({{ $league->id }})" class="quick-links-btn" style="text-decoration: none; display: inline-block;">Sub Request</a>
                     </div>
                 </div>
 
