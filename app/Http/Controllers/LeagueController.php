@@ -2251,6 +2251,27 @@ class LeagueController extends Controller
     }
 
     /**
+     * Update the per-league flash message and its on/off toggle.
+     */
+    public function updateFlashMessage(Request $request, $leagueId)
+    {
+        $league = League::findOrFail($leagueId);
+
+        $validated = $request->validate([
+            'flash_message' => 'nullable|string|max:1000',
+            'flash_message_enabled' => 'sometimes|boolean',
+        ]);
+
+        $league->update([
+            'flash_message' => $validated['flash_message'] ?? null,
+            'flash_message_enabled' => (bool) ($validated['flash_message_enabled'] ?? false),
+        ]);
+
+        return redirect()->route('admin.leagues.show', $league->id)
+            ->with('success', 'Flash message updated.');
+    }
+
+    /**
      * Show how often each player has been scheduled at each tee time slot.
      */
     public function teeTimeDistribution($leagueId)

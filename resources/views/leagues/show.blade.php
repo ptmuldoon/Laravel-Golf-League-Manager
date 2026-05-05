@@ -399,6 +399,26 @@
             </div>
         </div>
 
+        <!-- Flash Message -->
+        <div class="content-section">
+            <h2 class="section-title">📣 Home Page Flash Message</h2>
+            <form action="{{ route('admin.leagues.flashMessage.update', $league->id) }}" method="POST">
+                @csrf
+                <div style="margin-bottom: 12px;">
+                    <textarea name="flash_message" rows="3" maxlength="1000"
+                        placeholder="A short note that will appear at the top of this league's section on the home page (max 1000 chars)."
+                        style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: inherit; font-size: 0.95em; resize: vertical;">{{ old('flash_message', $league->flash_message) }}</textarea>
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
+                        <input type="checkbox" name="flash_message_enabled" value="1" {{ $league->flash_message_enabled ? 'checked' : '' }}>
+                        <span>Show on home page</span>
+                    </label>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+
         <!-- Standings -->
         <div class="content-section">
             <h2 class="section-title">🏆 Standings</h2>

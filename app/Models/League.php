@@ -22,12 +22,15 @@ class League extends Model
         'sub_request_code',
         'default_tee_time',
         'tee_time_interval',
+        'flash_message',
+        'flash_message_enabled',
     ];
 
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
         'is_active' => 'boolean',
+        'flash_message_enabled' => 'boolean',
         'fee_per_player' => 'decimal:2',
         'par3_payout' => 'decimal:2',
         'payout_1st_pct' => 'decimal:2',

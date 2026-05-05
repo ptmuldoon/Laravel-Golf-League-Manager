@@ -691,6 +691,28 @@
             <a href="{{ route('login') }}" class="admin-link" title="Login">🔐</a>
         @endauth
 
+        <!-- Flash Messages (modal popup, shown every page load until admin disables) -->
+        @php
+            $flashLeagues = $activeLeagues->filter(fn($l) => $l->flash_message_enabled && trim($l->flash_message ?? ''));
+        @endphp
+        @if($flashLeagues->isNotEmpty())
+            <div id="flash-modal-overlay"
+                 style="position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px;">
+                <div role="dialog" aria-modal="true"
+                     style="position: relative; background: #fff; max-width: 360px; width: 100%; max-height: 85vh; overflow-y: auto; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+                    <button type="button" aria-label="Close"
+                            onclick="document.getElementById('flash-modal-overlay').remove();"
+                            style="position: absolute; top: 6px; right: 8px; width: 28px; height: 28px; border: none; background: transparent; color: #721c24; font-size: 1.5em; line-height: 1; cursor: pointer; border-radius: 4px; padding: 0; z-index: 1;">&times;</button>
+                    @foreach($flashLeagues as $league)
+                        <div style="background: #f8d7da; border-left: 5px solid #dc3545; color: #721c24; padding: 14px 36px; border-radius: 10px; margin: 0 0 1px 0; font-size: 0.92em; line-height: 1.45; text-align: center;">
+                            <div style="font-weight: 700; margin-bottom: 4px;">⚠️ {{ $league->name }}</div>
+                            {!! nl2br(e(trim($league->flash_message))) !!}
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+
         <!-- Standings per League -->
         @if($activeLeagues->isNotEmpty())
             @if($allActiveLeagues->count() > 1)

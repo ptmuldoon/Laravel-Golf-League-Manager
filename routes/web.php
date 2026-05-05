@@ -138,6 +138,7 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
     // League finance routes
     Route::get('/leagues/{league_id}/hole-stats', [LeagueController::class, 'holeStats'])->name('leagues.holeStats');
     Route::get('/leagues/{league_id}/tee-time-distribution', [LeagueController::class, 'teeTimeDistribution'])->name('leagues.teeTimeDistribution');
+    Route::post('/leagues/{league_id}/flash-message', [LeagueController::class, 'updateFlashMessage'])->name('leagues.flashMessage.update');
     Route::get('/leagues/{league_id}/finances', [LeagueController::class, 'showFinances'])->name('leagues.finances');
     Route::post('/leagues/{league_id}/finances', [LeagueController::class, 'storeFinance'])->name('leagues.finances.store');
     Route::delete('/leagues/{league_id}/finances/{id}', [LeagueController::class, 'deleteFinance'])->name('leagues.finances.delete');
