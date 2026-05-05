@@ -58,6 +58,13 @@
             font-size: 1.1em;
             font-weight: 700;
         }
+        .scorecard-group {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #d32f2f;
+            text-align: center;
+            flex: 1;
+        }
         .scorecard-info {
             font-size: 0.85em;
             color: #444;
@@ -225,7 +232,7 @@
         <button onclick="window.print()" class="btn-print">🖨️ Print Scorecards</button>
     </div>
 
-    @foreach($scorecards as $card)
+    @foreach($scorecards as $index => $card)
         @php
             $match = $card['match'];
             $courseInfo = $card['courseInfo'];
@@ -244,6 +251,7 @@
                 <div class="scorecard-title">
                     {{ $awayTeamName }} vs {{ $homeTeamName }}
                 </div>
+                <div class="scorecard-group">Group {{ $index + 1 }}</div>
                 <div class="scorecard-info">
                     {{ $league->name }} - Week {{ $weekNumber }}<br>
                     {{ $match->match_date->format('M d, Y') }}{{ $match->tee_time ? ' @ ' . \Carbon\Carbon::parse($match->tee_time)->format('g:i A') : '' }}
