@@ -2145,13 +2145,22 @@ class LeagueController extends Controller
         // Next week schedule
         if ($data['nextWeekMatches']->isNotEmpty()) {
             $lines[] = "WK{$data['nextWeekNumber']} SCHEDULE:";
+            $shortName = function ($mp) {
+                if ($mp->player && $mp->player->first_name && $mp->player->last_name) {
+                    return mb_substr($mp->player->first_name, 0, 1) . '.' . $mp->player->last_name;
+                }
+                return $mp->player ? $mp->player->name : ($mp->substitute_name ?? '');
+            };
             foreach ($data['nextWeekMatches'] as $match) {
-                $home = $data['nextWeekTeamNames'][$match->id]['home'] ?? 'TBD';
-                $away = $data['nextWeekTeamNames'][$match->id]['away'] ?? 'TBD';
-                $home = mb_substr($home, 0, 10);
-                $away = mb_substr($away, 0, 10);
                 $time = $match->tee_time ? \Carbon\Carbon::parse($match->tee_time)->format('g:iA') : '';
-                $lines[] = $time ? "{$time} {$home} v {$away}" : "{$home} v {$away}";
+                $homePlayers = $match->matchPlayers
+                    ->where('position_in_pairing', '<=', 2)
+                    ->map($shortName)->filter()->implode('/');
+                $awayPlayers = $match->matchPlayers
+                    ->where('position_in_pairing', '>', 2)
+                    ->map($shortName)->filter()->implode('/');
+                $pairing = ($homePlayers ?: 'TBD') . ' v ' . ($awayPlayers ?: 'TBD');
+                $lines[] = $time ? "{$time} {$pairing}" : $pairing;
             }
         }
 
