@@ -236,7 +236,7 @@ class HomeController extends Controller
                     }
 
                     $totalMatches = $wins + $losses + $ties;
-                    $winPct = $totalMatches > 0 ? round(($wins / $totalMatches) * 100, 1) : null;
+                    $winPct = $totalMatches > 0 ? round((($wins + 0.5 * $ties) / $totalMatches) * 100, 1) : null;
 
                     return [
                         'player' => $player,
