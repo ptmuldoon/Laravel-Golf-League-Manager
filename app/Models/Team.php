@@ -50,7 +50,7 @@ class Team extends Model
     public function winPercentage()
     {
         $total = $this->wins + $this->losses + $this->ties;
-        return $total > 0 ? round(($this->wins / $total) * 100, 1) : 0;
+        return $total > 0 ? round((($this->wins + 0.5 * $this->ties) / $total) * 100, 1) : 0;
     }
 
     public function totalPoints()
