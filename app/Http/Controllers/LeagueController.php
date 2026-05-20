@@ -2736,7 +2736,7 @@ class LeagueController extends Controller
             $team->setAttribute('week_ties', $stats['ties']);
             $team->setAttribute('week_points', $stats['points']);
             $total = $stats['wins'] + $stats['losses'] + $stats['ties'];
-            $team->setAttribute('week_win_pct', $total > 0 ? round(($stats['wins'] / $total) * 100, 1) : 0);
+            $team->setAttribute('week_win_pct', $total > 0 ? round((($stats['wins'] + 0.5 * $stats['ties']) / $total) * 100, 1) : 0);
             return $team;
         })->sortByDesc('week_points')->values();
 
