@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ComputesIndividualMatchups;
 use App\Mail\LeagueMessageEmail;
 use App\Mail\WeeklyResultsEmail;
 use App\Models\League;
@@ -30,6 +31,8 @@ use Illuminate\Support\Facades\Mail;
 
 class LeagueController extends Controller
 {
+    use ComputesIndividualMatchups;
+
     /**
      * Display a listing of leagues
      */
@@ -2767,7 +2770,7 @@ class LeagueController extends Controller
                 ->toArray();
 
             $playerStandings = MatchPlayer::whereIn('match_id', $completedMatchIds)
-                ->with(['player', 'scores', 'match.result'])
+                ->with(['player', 'scores', 'match.result', 'match.matchPlayers.scores', 'match.golfCourse'])
                 ->get()
                 ->groupBy('player_id')
                 ->map(function ($entries) use ($playerTeamMap, $totalPar3WinCounts) {
@@ -2785,11 +2788,28 @@ class LeagueController extends Controller
                     $totalSeasonPoints = 0;
                     foreach ($entries as $mp) {
                         if (!$mp->match->result) continue;
-                        $isHome = $mp->position_in_pairing <= 2;
+                        $isHome = $mp->team_id == $mp->match->home_team_id;
                         $result = $mp->match->result;
-                        $pts = $isHome ? ($result->team_points_home ?? 0) : ($result->team_points_away ?? 0);
+
+                        // Points: individual match play awards the player's own
+                        // win/loss/tie (1/0/0.5); team formats use team points.
+                        if ($mp->match->scoring_type === 'individual_match_play') {
+                            $pts = $this->getIndividualPlayerPoints($mp);
+                        } else {
+                            $pts = $isHome
+                                ? ($result->team_points_home ?? 0)
+                                : ($result->team_points_away ?? 0);
+                        }
                         $totalSeasonPoints += $pts;
-                        if ($result->winning_team_id === null) {
+
+                        // W-L-T: individual match play uses the player's own
+                        // matchup; team formats use the team's result.
+                        if ($mp->match->scoring_type === 'individual_match_play') {
+                            $indResult = $this->getIndividualMatchupResult($mp);
+                            if ($indResult === 'win') $wins++;
+                            elseif ($indResult === 'loss') $losses++;
+                            else $ties++;
+                        } elseif ($result->winning_team_id === null) {
                             $ties++;
                         } else {
                             $playerWon = ($isHome && $result->winning_team_id == $mp->match->home_team_id)
