@@ -903,21 +903,20 @@ class HomeController extends Controller
     }
 
     /**
-     * Calculate individual match play points for a specific player's matchup.
-     * Recomputes net scores using 18-hole CH distribution to match the match show page.
+     * Calculate individual match play points for a specific player's standing.
+     * In individual format the player is awarded a straight win/loss/tie
+     * (1 / 0 / 0.5) rather than the team's per-matchup scoring values.
      */
     private function getIndividualPlayerPoints($mp): float
     {
-        $match = $mp->match;
         $result = $this->getIndividualMatchupResult($mp);
 
-        $scoringType = 'individual_match_play';
         if ($result === 'win') {
-            return (float) \App\Models\ScoringSetting::getPoints($scoringType, 'win', 0.5, $match->league_id);
+            return 1.0;
         } elseif ($result === 'loss') {
-            return (float) \App\Models\ScoringSetting::getPoints($scoringType, 'loss', 0.0, $match->league_id);
+            return 0.0;
         }
-        return (float) \App\Models\ScoringSetting::getPoints($scoringType, 'tie', 0.25, $match->league_id);
+        return 0.5;
     }
 
     /**
