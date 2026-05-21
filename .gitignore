@@ -27,3 +27,4 @@ Homestead.yaml
 /public/images/logo2.svg
 /public/images/logo3.svg
 Thumbs.db
+.claude/settings.local.json
