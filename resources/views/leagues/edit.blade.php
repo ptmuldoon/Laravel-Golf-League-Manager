@@ -143,6 +143,19 @@
             margin-bottom: 0;
             cursor: pointer;
         }
+        .payout-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+        }
+        @media (max-width: 768px) {
+            body { padding: 12px; }
+            .form-container { padding: 20px; }
+            .form-row { grid-template-columns: 1fr; gap: 0; margin-bottom: 0; }
+            .payout-grid { grid-template-columns: 1fr; gap: 0; }
+            .button-group { flex-direction: column; gap: 10px; }
+            .button-group .btn { width: 100%; text-align: center; }
+        }
     </style>
 </head>
 <body>
@@ -276,7 +289,7 @@
                 <div class="form-group">
                     <label>Place Payout Percentages</label>
                     <div class="help-text" style="margin-bottom: 10px;">Percentage of remaining funds (after par 3 payouts) distributed to top finishers</div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                    <div class="payout-grid">
                         <div class="form-group" style="margin-bottom: 0;">
                             <label for="payout_1st_pct" style="font-size: 0.85em;">1st Place %</label>
                             <input type="number" id="payout_1st_pct" name="payout_1st_pct" value="{{ old('payout_1st_pct', $league->payout_1st_pct) }}" step="1" min="0" max="100">

@@ -109,6 +109,9 @@
             color: #888;
             margin-top: 5px;
         }
+        @media (max-width: 600px) {
+            .form-row { grid-template-columns: 1fr; gap: 0; }
+        }
     </style>
 </head>
 <body>

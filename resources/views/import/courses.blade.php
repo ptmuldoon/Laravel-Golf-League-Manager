@@ -214,6 +214,7 @@
                 <h3>📋 CSV Format Requirements</h3>
                 <p>Your CSV file should have one row per hole per teebox. Each row represents a single hole for a specific teebox on a course.</p>
 
+                <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
                 <table class="csv-format-table">
                     <thead>
                         <tr>
@@ -310,6 +311,7 @@
                         </tr>
                     </tbody>
                 </table>
+                </div>
 
                 <p style="margin-top: 15px;"><strong>Note:</strong> Duplicate course names will update the existing course data. Rating and slope values must be the same for all holes of the same teebox.</p>
                 <p style="margin-top: 10px;">

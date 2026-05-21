@@ -245,6 +245,7 @@
                 <h3>📋 Hole-by-Hole CSV Format</h3>
                 <p>One row per round with individual scores for each hole (1-18). Leave holes blank if not played.</p>
 
+                <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
                 <table class="csv-format-table">
                     <thead>
                         <tr>
@@ -317,6 +318,7 @@
                         </tr>
                     </tbody>
                 </table>
+                </div>
 
                 <p style="margin-top: 15px;"><strong>Note:</strong> For 9-hole rounds, only fill in holes 1-9 (front) or 10-18 (back), and set <code>nine_type</code> accordingly.</p>
 
@@ -327,6 +329,7 @@
                 <h3>📋 Total Score Only CSV Format</h3>
                 <p>One row per round with just the total score. Scores will be distributed across holes based on par.</p>
 
+                <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
                 <table class="csv-format-table">
                     <thead>
                         <tr>
@@ -399,6 +402,7 @@
                         </tr>
                     </tbody>
                 </table>
+                </div>
 
                 <p style="margin-top: 15px;"><strong>Note:</strong> The system will distribute your total score across holes based on course par, similar to manual "Total Only" entry.</p>
 

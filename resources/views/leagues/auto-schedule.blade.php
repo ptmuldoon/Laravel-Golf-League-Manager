@@ -7,6 +7,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Auto-Schedule Generator</title>
     <link rel="stylesheet" href="{{ asset('css/app.css') }}">
+    <style>
+        .as-two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        @media (max-width: 768px) {
+            .as-two-col { grid-template-columns: 1fr; gap: 15px; margin-bottom: 15px; }
+        }
+    </style>
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto; background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%); min-height: 100vh; padding: 20px;">
     <div style="max-width: 800px; margin: 0 auto;">
@@ -62,7 +73,7 @@
                     <div style="font-size: 0.85em; color: #666; margin-top: 5px;">First week of play</div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
+                <div class="as-two-col">
                     <div>
                         <label style="display: block; font-weight: 600; color: #333; margin-bottom: 8px;">Holes</label>
                         <select name="holes" style="width: 100%; padding: 12px 15px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1em; font-family: inherit;">
@@ -82,7 +93,7 @@
                     </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
+                <div class="as-two-col">
                     <div>
                         <label style="display: block; font-weight: 600; color: #333; margin-bottom: 8px;">Score Mode</label>
                         <select name="score_mode" style="width: 100%; padding: 12px 15px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1em; font-family: inherit;">
@@ -94,7 +105,7 @@
                     <div></div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
+                <div class="as-two-col">
                     <div>
                         <label style="display: block; font-weight: 600; color: #333; margin-bottom: 8px;">First Tee Time</label>
                         <input type="time" name="start_tee_time" value="{{ $league->default_tee_time ? \Carbon\Carbon::parse($league->default_tee_time)->format('H:i') : '16:40' }}" required style="width: 100%; padding: 12px 15px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1em;">

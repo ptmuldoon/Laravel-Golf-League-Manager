@@ -445,6 +445,7 @@
                                 </a>
                             </div>
                         @else
+                            <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
                             <table>
                                 <thead>
                                     <tr>
@@ -475,6 +476,7 @@
                                     @endforeach
                                 </tbody>
                             </table>
+                            </div>
                         @endif
                     </div>
                 @endforeach
@@ -486,6 +488,7 @@
                     </a>
                 </div>
             @else
+                <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
                 <table>
                     <thead>
                         <tr>
@@ -516,6 +519,7 @@
                         @endforeach
                     </tbody>
                 </table>
+                </div>
             @endif
         </div>
 

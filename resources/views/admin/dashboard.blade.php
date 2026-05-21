@@ -415,7 +415,8 @@
         .side.away .modal-sub-search .results { right: 0; }
         .side.home .modal-sub-search .results { left: 0; }
         .active-leagues-wrapper {
-            overflow: visible;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
         }
         .empty-state {
             text-align: center;

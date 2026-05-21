@@ -154,6 +154,12 @@
             font-size: 0.9em;
             margin-top: 5px;
         }
+        @media (max-width: 768px) {
+            body { padding: 12px; }
+            .teams-container { grid-template-columns: 1fr; gap: 14px; }
+            .team-section { padding: 20px; }
+            .submit-section { padding: 20px; }
+        }
     </style>
 </head>
 <body>

@@ -134,6 +134,13 @@
             color: #0c5460;
             font-size: 0.9em;
         }
+        @media (max-width: 768px) {
+            body { padding: 12px; }
+            .form-container { padding: 20px; }
+            .form-row { grid-template-columns: 1fr; gap: 0; margin-bottom: 0; }
+            .button-group { flex-direction: column; gap: 10px; }
+            .button-group .btn { width: 100%; text-align: center; }
+        }
     </style>
 </head>
 <body>

@@ -241,6 +241,7 @@
                     <p>No matches played yet.</p>
                 </div>
             @else
+                <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
                 <table>
                     <thead>
                         <tr>
@@ -306,6 +307,7 @@
                         @endforeach
                     </tbody>
                 </table>
+                </div>
             @endif
         </div>
     </div>
