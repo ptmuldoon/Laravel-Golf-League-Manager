@@ -2177,6 +2177,29 @@ class LeagueController extends Controller
     {
         $league = League::with(['players', 'finances.player'])->findOrFail($leagueId);
 
+        ['playerSummaries' => $playerSummaries, 'totals' => $totals] = $this->buildFinanceSummary($league);
+
+        return view('leagues.finances', compact('league', 'playerSummaries', 'totals'));
+    }
+
+    /**
+     * Public read-only finance summary partial (loaded on the home page).
+     * Shows each player's balance — what they owe or are due.
+     */
+    public function financesPartial($leagueId)
+    {
+        $league = League::with(['players', 'finances.player'])->findOrFail($leagueId);
+
+        ['playerSummaries' => $playerSummaries, 'totals' => $totals] = $this->buildFinanceSummary($league);
+
+        return view('leagues.finances-partial', compact('league', 'playerSummaries', 'totals'));
+    }
+
+    /**
+     * Compute per-player finance summaries and league-wide totals.
+     */
+    private function buildFinanceSummary(League $league): array
+    {
         $finances = $league->finances->groupBy('player_id');
 
         $feePerPlayer = (float) ($league->fee_per_player ?? 0);
@@ -2211,7 +2234,7 @@ class LeagueController extends Controller
         $totals['fees_outstanding'] = max(0, $totals['fees_owed'] - $totals['fees_paid']);
         $totals['balance'] = $totals['fees_paid'] - $totals['fees_owed'] + $totals['winnings'] - $totals['payouts'];
 
-        return view('leagues.finances', compact('league', 'playerSummaries', 'totals'));
+        return ['playerSummaries' => $playerSummaries, 'totals' => $totals];
     }
 
     /**

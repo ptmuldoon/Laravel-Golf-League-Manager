@@ -740,6 +740,7 @@
                         <a href="#" onclick="event.preventDefault(); showQuickLink('hole-stats', {{ $league->id }})" class="quick-links-btn" style="text-decoration: none; display: inline-block;">Hole Stats</a>
                         <a href="#" onclick="event.preventDefault(); showQuickLink('player-stats', {{ $league->id }})" class="quick-links-btn" style="text-decoration: none; display: inline-block;">Player Stats</a>
                         <a href="#" onclick="event.preventDefault(); showQuickLink('player-history', {{ $league->id }})" class="quick-links-btn" style="text-decoration: none; display: inline-block;">Player History</a>
+                        <a href="#" onclick="event.preventDefault(); showQuickLink('finances', {{ $league->id }})" class="quick-links-btn" style="text-decoration: none; display: inline-block;">Finances</a>
                         <a href="#" onclick="event.preventDefault(); openSubRequestModal({{ $league->id }})" class="quick-links-btn" style="text-decoration: none; display: inline-block;">Sub Request</a>
                     </div>
                 </div>

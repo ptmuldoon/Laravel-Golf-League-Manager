@@ -197,6 +197,7 @@ Route::get('/leagues/{league_id}/week-results-partial/{week}', [HomeController::
 Route::get('/leagues/{league_id}/schedule-partial', [LeagueController::class, 'schedulePartial'])->name('leagues.schedulePartial');
 Route::get('/leagues/{league_id}/player-stats-partial', [LeagueController::class, 'playerStatsPartial'])->name('leagues.playerStatsPartial');
 Route::get('/leagues/{league_id}/player-history-partial', [LeagueController::class, 'playerHistoryPartial'])->name('leagues.playerHistoryPartial');
+Route::get('/leagues/{league_id}/finances-partial', [LeagueController::class, 'financesPartial'])->name('leagues.financesPartial');
 
 // Import routes (admin only)
 Route::middleware('admin')->prefix('import')->name('import.')->group(function () {
