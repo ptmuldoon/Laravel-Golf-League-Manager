@@ -1490,34 +1490,37 @@ class LeagueController extends Controller
 
                 // Get course info for hole handicap rankings
                 $holeRange = $match->holes === 'back_9' ? [10, 18] : [1, 9];
-                $courseInfoHoles = $match->golfCourse->courseInfo()
-                    ->where('teebox', $match->teebox)
-                    ->whereBetween('hole_number', $holeRange)
-                    ->get()
-                    ->keyBy('hole_number');
-                $totalHoles = 9;
+                $courseInfoHoles = $allCI->keyBy('hole_number');
+                $sortedHolesByHandicap = $allCI->sortBy('handicap')->pluck('hole_number')->values();
 
                 $matchHasScores = false;
 
                 foreach ($match->matchPlayers as $mp) {
                     if (!isset($validated['scores'][$mp->id])) continue;
 
-                    $courseHandicap = (float) $mp->course_handicap;
-                    $ch9 = round($courseHandicap / 2);
+                    // Distribute the 18-hole course handicap across all 18 holes by
+                    // hole handicap ranking. Matches MatchPlayCalculator::buildStrokeMap
+                    // and the admin weekly-scores view so stored net_score agrees with
+                    // the recomputed values used elsewhere.
+                    $ch18 = max(0, (int) $mp->course_handicap);
+                    $strokesOnHole = [];
+                    foreach ($allCI as $h) {
+                        $strokesOnHole[$h->hole_number] = 0;
+                    }
+                    $remaining = $ch18;
+                    while ($remaining > 0) {
+                        foreach ($sortedHolesByHandicap as $hn) {
+                            if ($remaining <= 0) break;
+                            $strokesOnHole[$hn]++;
+                            $remaining--;
+                        }
+                    }
 
                     foreach ($validated['scores'][$mp->id] as $holeNumber => $strokes) {
                         $holeInfo = $courseInfoHoles->get((int) $holeNumber);
                         $par = $holeInfo ? (int) $holeInfo->par : 4;
-                        $holeHandicapRanking = ($holeInfo && $holeInfo->handicap) ? (int) $holeInfo->handicap : (int) $holeNumber;
 
-                        // Strokes received on this hole
-                        $ch = max(0, (int) $ch9);
-                        $strokesReceived = 0;
-                        if ($ch > 0) {
-                            $base = intdiv($ch, $totalHoles);
-                            $remainder = $ch % $totalHoles;
-                            $strokesReceived = $base + ($holeHandicapRanking <= $remainder ? 1 : 0);
-                        }
+                        $strokesReceived = $strokesOnHole[(int) $holeNumber] ?? 0;
 
                         // Adjusted Gross: capped at Net Double Bogey
                         $maxScore = $par + 2 + $strokesReceived;
