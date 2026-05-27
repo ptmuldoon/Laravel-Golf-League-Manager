@@ -1479,7 +1479,11 @@
                     { id: {{ $p->id }}, name: "{{ e($p->first_name . ' ' . $p->last_name) }}" },
                 @endforeach
             ];
-            leagueWeekData[{{ $league->id }}] = {{ DB::table('matches')->where('league_id', $league->id)->max('week_number') ?? 16 }};
+            leagueWeekData[{{ $league->id }}] = [
+                @foreach(DB::table('matches')->where('league_id', $league->id)->selectRaw('week_number, MIN(match_date) as match_date')->groupBy('week_number')->havingRaw('MIN(match_date) >= ?', [now()->toDateString()])->orderBy('week_number')->get() as $w)
+                    { week: {{ $w->week_number }}, date: "{{ \Carbon\Carbon::parse($w->match_date)->format('M j, Y') }}" },
+                @endforeach
+            ];
             leagueHasCode[{{ $league->id }}] = {{ $league->sub_request_code ? 'true' : 'false' }};
         @endforeach
 
@@ -1500,13 +1504,18 @@
             // Populate week dropdown
             var weekSelect = document.getElementById('subWeekNumber');
             weekSelect.innerHTML = '<option value="">Select week...</option>';
-            var maxWeek = leagueWeekData[leagueId] || 16;
-            for (var w = 1; w <= maxWeek; w++) {
-                var opt = document.createElement('option');
-                opt.value = w;
-                opt.textContent = 'Week ' + w;
-                weekSelect.appendChild(opt);
+            var weeks = leagueWeekData[leagueId] || [];
+            if (weeks.length === 0) {
+                for (var w = 1; w <= 16; w++) {
+                    weeks.push({ week: w, date: null });
+                }
             }
+            weeks.forEach(function(w) {
+                var opt = document.createElement('option');
+                opt.value = w.week;
+                opt.textContent = w.date ? ('Week ' + w.week + ' - ' + w.date) : ('Week ' + w.week);
+                weekSelect.appendChild(opt);
+            });
 
             // Show/hide league code field
             var codeGroup = document.getElementById('subCodeGroup');
