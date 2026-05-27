@@ -20,7 +20,7 @@
                     {{-- Content --}}
                     <tr>
                         <td style="background: white; padding: 30px 25px;">
-                            <h2 style="color: {{ $themeSettings['primary'] }}; font-size: 20px; margin: 0 0 20px 0;">Sub Needed - Week {{ $weekNumber }}</h2>
+                            <h2 style="color: {{ $themeSettings['primary'] }}; font-size: 20px; margin: 0 0 20px 0;">Sub Needed - Week {{ $weekNumber }}@if($weekDateLabel) ({{ $weekDateLabel }})@endif</h2>
 
                             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 20px;">
                                 <tr>
@@ -33,7 +33,7 @@
                                 <tr>
                                     <td style="padding: 10px 15px; background: #f8f9fa; border-left: 4px solid {{ $themeSettings['primary'] }}; border-radius: 0 4px 4px 0;">
                                         <strong style="color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Week</strong><br>
-                                        <span style="font-size: 16px; color: #333;">{{ $weekNumber }}</span>
+                                        <span style="font-size: 16px; color: #333;">{{ $weekNumber }}@if($weekDateLabel) &mdash; {{ $weekDateLabel }}@endif</span>
                                     </td>
                                 </tr>
                             </table>

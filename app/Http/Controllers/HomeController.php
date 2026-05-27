@@ -934,6 +934,12 @@ class HomeController extends Controller
         $weekNumber = $validated['week_number'];
         $message = $validated['message'] ?? '';
 
+        $weekDate = DB::table('matches')
+            ->where('league_id', $league->id)
+            ->where('week_number', $weekNumber)
+            ->min('match_date');
+        $weekDateLabel = $weekDate ? Carbon::parse($weekDate)->format('F j, Y') : null;
+
         // Get admin users with notification preferences
         $admins = DB::table('users')->where('is_admin', true)->get();
 
@@ -954,7 +960,7 @@ class HomeController extends Controller
         // Send email to admins with email notifications enabled
         if (!empty($adminEmails)) {
             try {
-                $mailable = new SubRequestEmail($league, $playerName, $weekNumber, $message);
+                $mailable = new SubRequestEmail($league, $playerName, $weekNumber, $weekDateLabel, $message);
                 Mail::to(config('mail.from.address'))
                     ->bcc($adminEmails)
                     ->send($mailable);
@@ -967,7 +973,8 @@ class HomeController extends Controller
         // Send SMS to admins with SMS notifications enabled
         if (!empty($adminPhones)) {
             try {
-                $smsBody = "{$league->name}: Sub needed - {$playerName} for Week {$weekNumber}";
+                $weekLabel = $weekDateLabel ? "Week {$weekNumber} ({$weekDateLabel})" : "Week {$weekNumber}";
+                $smsBody = "{$league->name}: Sub needed - {$playerName} for {$weekLabel}";
                 if ($message) {
                     $smsBody .= " - \"{$message}\"";
                 }

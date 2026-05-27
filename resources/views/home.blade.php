@@ -1481,7 +1481,7 @@
             ];
             leagueWeekData[{{ $league->id }}] = [
                 @foreach(DB::table('matches')->where('league_id', $league->id)->selectRaw('week_number, MIN(match_date) as match_date')->groupBy('week_number')->havingRaw('MIN(match_date) >= ?', [now()->toDateString()])->orderBy('week_number')->get() as $w)
-                    { week: {{ $w->week_number }}, date: "{{ \Carbon\Carbon::parse($w->match_date)->format('M j, Y') }}" },
+                    { week: {{ $w->week_number }}, date: "{{ \Carbon\Carbon::parse($w->match_date)->format('F j, Y') }}" },
                 @endforeach
             ];
             leagueHasCode[{{ $league->id }}] = {{ $league->sub_request_code ? 'true' : 'false' }};

@@ -17,13 +17,18 @@ class SubRequestEmail extends Mailable
         public League $league,
         public string $playerName,
         public int $weekNumber,
+        public ?string $weekDateLabel,
         public string $requestMessage,
     ) {}
 
     public function envelope(): Envelope
     {
+        $weekText = $this->weekDateLabel
+            ? "Week {$this->weekNumber} - {$this->weekDateLabel}"
+            : "Week {$this->weekNumber}";
+
         return new Envelope(
-            subject: "{$this->league->name} - Sub Request: {$this->playerName} (Week {$this->weekNumber})",
+            subject: "{$this->league->name} - Sub Request: {$this->playerName} ({$weekText})",
         );
     }
 
