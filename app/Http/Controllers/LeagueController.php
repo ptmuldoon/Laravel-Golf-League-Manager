@@ -2608,6 +2608,8 @@ class LeagueController extends Controller
             'netStats' => collect(),
             'grossByHole' => [],
             'netByHole' => [],
+            'parByHole' => [],
+            'avgByHole' => [],
         ];
 
         $completedMatches = LeagueMatch::where('league_id', $league->id)
@@ -2639,6 +2641,11 @@ class LeagueController extends Controller
         $initHole = fn() => ['albatross' => 0, 'eagle' => 0, 'birdie' => 0, 'par' => 0, 'bogey' => 0, 'double' => 0, 'triple_plus' => 0, 'total' => 0];
         $grossByHole = [];
         $netByHole = [];
+        $parCounts = [];
+        $strokeSumByHole = [];
+        $strokeCountByHole = [];
+        $netSumByHole = [];
+        $netCountByHole = [];
 
         foreach ($matchPlayers as $mp) {
             $activePlayer = $mp->substitute_player_id ? $mp->substitutePlayer : $mp->player;
@@ -2669,6 +2676,8 @@ class LeagueController extends Controller
                 $holePar = $pars[$holeNum] ?? null;
                 if ($holePar === null) continue;
 
+                $parCounts[$holeNum][$holePar] = ($parCounts[$holeNum][$holePar] ?? 0) + 1;
+
                 // Gross
                 if ($score->strokes && $score->strokes > 0) {
                     $grossByPlayer[$playerId]['total_holes']++;
@@ -2678,6 +2687,8 @@ class LeagueController extends Controller
                     $cat = $diff <= -3 ? 'albatross' : ($diff == -2 ? 'eagle' : ($diff == -1 ? 'birdie' : ($diff == 0 ? 'par' : ($diff == 1 ? 'bogey' : ($diff == 2 ? 'double' : 'triple_plus')))));
                     $grossByPlayer[$playerId][$cat]++;
                     $grossByHole[$holeNum][$cat]++;
+                    $strokeSumByHole[$holeNum] = ($strokeSumByHole[$holeNum] ?? 0) + $score->strokes;
+                    $strokeCountByHole[$holeNum] = ($strokeCountByHole[$holeNum] ?? 0) + 1;
                 }
 
                 // Net
@@ -2690,6 +2701,8 @@ class LeagueController extends Controller
                     $cat = $diff <= -3 ? 'albatross' : ($diff == -2 ? 'eagle' : ($diff == -1 ? 'birdie' : ($diff == 0 ? 'par' : ($diff == 1 ? 'bogey' : ($diff == 2 ? 'double' : 'triple_plus')))));
                     $netByPlayer[$playerId][$cat]++;
                     $netByHole[$holeNum][$cat]++;
+                    $netSumByHole[$holeNum] = ($netSumByHole[$holeNum] ?? 0) + $netVal;
+                    $netCountByHole[$holeNum] = ($netCountByHole[$holeNum] ?? 0) + 1;
                 }
             }
         }
@@ -2705,7 +2718,27 @@ class LeagueController extends Controller
         ksort($grossByHole);
         ksort($netByHole);
 
-        return compact('grossStats', 'netStats', 'grossByHole', 'netByHole');
+        $parByHole = [];
+        foreach ($parCounts as $holeNum => $counts) {
+            arsort($counts);
+            $parByHole[$holeNum] = array_key_first($counts);
+        }
+
+        $avgByHole = [];
+        foreach ($strokeCountByHole as $holeNum => $count) {
+            if ($count > 0) {
+                $avgByHole[$holeNum] = [
+                    'gross_avg' => $strokeSumByHole[$holeNum] / $count,
+                    'gross_count' => $count,
+                    'net_avg' => isset($netCountByHole[$holeNum]) && $netCountByHole[$holeNum] > 0
+                        ? $netSumByHole[$holeNum] / $netCountByHole[$holeNum]
+                        : null,
+                    'net_count' => $netCountByHole[$holeNum] ?? 0,
+                ];
+            }
+        }
+
+        return compact('grossStats', 'netStats', 'grossByHole', 'netByHole', 'parByHole', 'avgByHole');
     }
 
     /**

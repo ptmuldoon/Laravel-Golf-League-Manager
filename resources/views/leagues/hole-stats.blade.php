@@ -30,14 +30,15 @@
             display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
         }
         .toggle-container {
-            display: flex; background: #f0f0f5; border-radius: 8px; overflow: hidden; font-size: 0.5em;
+            display: flex; gap: 6px; font-size: 0.5em;
         }
         .toggle-btn {
             padding: 8px 20px; cursor: pointer; font-weight: 600; border: none;
-            background: transparent; color: #666; transition: all 0.3s ease; font-size: 14px;
+            background: #f0f0f5; color: #666; transition: all 0.3s ease; font-size: 14px;
+            border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
         .toggle-btn.active {
-            background: var(--primary-color); color: white; border-radius: 8px;
+            background: var(--primary-color); color: white;
         }
         .scrollable-table { overflow-x: auto; }
         table {
@@ -168,6 +169,11 @@
                 <div style="margin-top: 30px; border-top: 2px solid #f0f0f0; padding-top: 20px;">
                     <h2 class="section-title" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;">
                         <span>Totals by Hole</span>
+                        <div class="toggle-container">
+                            <button class="toggle-btn active" id="btn-byhole-gross-full" onclick="showByHoleMode('gross')">Gross</button>
+                            <button class="toggle-btn" id="btn-byhole-net-full" onclick="showByHoleMode('net')">Net</button>
+                            <button class="toggle-btn" id="btn-byhole-vspar-full" onclick="showByHoleMode('vspar')">vs. Par</button>
+                        </div>
                     </h2>
                     @php $idSuffix = 'full'; @endphp
                     @include('leagues.hole-stats-by-hole')
@@ -180,10 +186,18 @@
         function showMode(mode) {
             document.getElementById('table-gross').style.display = mode === 'gross' ? '' : 'none';
             document.getElementById('table-net').style.display = mode === 'net' ? '' : 'none';
-            document.getElementById('hs-byhole-gross-full').style.display = mode === 'gross' ? '' : 'none';
-            document.getElementById('hs-byhole-net-full').style.display = mode === 'net' ? '' : 'none';
             document.getElementById('btn-gross').classList.toggle('active', mode === 'gross');
             document.getElementById('btn-net').classList.toggle('active', mode === 'net');
+        }
+
+        function showByHoleMode(mode) {
+            var modes = ['gross', 'net', 'vspar'];
+            modes.forEach(function(m) {
+                var panel = document.getElementById('hs-byhole-' + m + '-full');
+                var btn = document.getElementById('btn-byhole-' + m + '-full');
+                if (panel) panel.style.display = (m === mode) ? '' : 'none';
+                if (btn) btn.classList.toggle('active', m === mode);
+            });
         }
     </script>
 </body>

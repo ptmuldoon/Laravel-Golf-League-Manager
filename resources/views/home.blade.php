@@ -1271,24 +1271,27 @@
         }
 
         function showHoleStatsByHoleMode(mode, leagueId) {
-            var grossByHole = document.getElementById('hs-byhole-gross-' + leagueId);
-            var netByHole = document.getElementById('hs-byhole-net-' + leagueId);
-            var grossBtn = document.getElementById('btn-byhole-gross-' + leagueId);
-            var netBtn = document.getElementById('btn-byhole-net-' + leagueId);
-            if (mode === 'gross') {
-                if (grossByHole) grossByHole.style.display = '';
-                if (netByHole) netByHole.style.display = 'none';
-                grossBtn.style.background = 'var(--primary-color)';
-                grossBtn.style.color = 'white';
-                netBtn.style.background = 'transparent';
-                netBtn.style.color = '#666';
-            } else {
-                if (grossByHole) grossByHole.style.display = 'none';
-                if (netByHole) netByHole.style.display = '';
-                netBtn.style.background = 'var(--primary-color)';
-                netBtn.style.color = 'white';
-                grossBtn.style.background = 'transparent';
-                grossBtn.style.color = '#666';
+            var panels = {
+                gross: document.getElementById('hs-byhole-gross-' + leagueId),
+                net: document.getElementById('hs-byhole-net-' + leagueId),
+                vspar: document.getElementById('hs-byhole-vspar-' + leagueId)
+            };
+            var buttons = {
+                gross: document.getElementById('btn-byhole-gross-' + leagueId),
+                net: document.getElementById('btn-byhole-net-' + leagueId),
+                vspar: document.getElementById('btn-byhole-vspar-' + leagueId)
+            };
+            for (var key in panels) {
+                if (panels[key]) panels[key].style.display = (key === mode) ? '' : 'none';
+                if (buttons[key]) {
+                    if (key === mode) {
+                        buttons[key].style.background = 'var(--primary-color)';
+                        buttons[key].style.color = 'white';
+                    } else {
+                        buttons[key].style.background = '#f0f0f5';
+                        buttons[key].style.color = '#666';
+                    }
+                }
             }
         }
 
@@ -1391,37 +1394,28 @@
             checkScrollableOverflow();
         }
 
-        // Player Stats: gross/net toggle
+        // Player Stats: gross/net/vspar toggle
         var playerStatsMode = {};
         function togglePlayerStatsMode(mode, leagueId) {
             playerStatsMode[leagueId] = mode;
-            var grossBtn = document.getElementById('btn-ps-gross-' + leagueId);
-            var netBtn = document.getElementById('btn-ps-net-' + leagueId);
-            if (mode === 'gross') {
-                grossBtn.style.background = 'var(--primary-color)';
-                grossBtn.style.color = 'white';
-                netBtn.style.background = 'transparent';
-                netBtn.style.color = '#666';
-            } else {
-                netBtn.style.background = 'var(--primary-color)';
-                netBtn.style.color = 'white';
-                grossBtn.style.background = 'transparent';
-                grossBtn.style.color = '#666';
-            }
-
-            // Toggle visible tables for all players
-            document.querySelectorAll('[id^="ps-gross-' + leagueId + '-"]').forEach(function(el) {
-                el.style.display = mode === 'gross' ? '' : 'none';
-            });
-            document.querySelectorAll('[id^="ps-net-' + leagueId + '-"]').forEach(function(el) {
-                el.style.display = mode === 'net' ? '' : 'none';
-            });
-            // Toggle nine summary tables
-            document.querySelectorAll('[id^="ps-nine-gross-' + leagueId + '-"]').forEach(function(el) {
-                el.style.display = mode === 'gross' ? '' : 'none';
-            });
-            document.querySelectorAll('[id^="ps-nine-net-' + leagueId + '-"]').forEach(function(el) {
-                el.style.display = mode === 'net' ? '' : 'none';
+            var modes = ['gross', 'net', 'vspar'];
+            modes.forEach(function(m) {
+                var btn = document.getElementById('btn-ps-' + m + '-' + leagueId);
+                if (btn) {
+                    if (m === mode) {
+                        btn.style.background = 'var(--primary-color)';
+                        btn.style.color = 'white';
+                    } else {
+                        btn.style.background = '#f0f0f5';
+                        btn.style.color = '#666';
+                    }
+                }
+                document.querySelectorAll('[id^="ps-' + m + '-' + leagueId + '-"]').forEach(function(el) {
+                    el.style.display = (m === mode) ? '' : 'none';
+                });
+                document.querySelectorAll('[id^="ps-nine-' + m + '-' + leagueId + '-"]').forEach(function(el) {
+                    el.style.display = (m === mode) ? '' : 'none';
+                });
             });
             checkScrollableOverflow();
         }

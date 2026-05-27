@@ -93,9 +93,10 @@
         <h2 class="section-title" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
             <span>Totals by Hole</span>
             <div style="display: flex; align-items: center; gap: 10px;">
-                <div style="display: flex; background: #f0f0f5; border-radius: 8px; overflow: hidden; font-size: 0.5em;">
-                    <button style="padding: 8px 20px; cursor: pointer; font-weight: 600; border: none; background: var(--primary-color); color: white; border-radius: 8px; font-size: 14px; transition: all 0.3s ease;" id="btn-byhole-gross-{{ $league->id }}" onclick="showHoleStatsByHoleMode('gross', {{ $league->id }})">Gross</button>
-                    <button style="padding: 8px 20px; cursor: pointer; font-weight: 600; border: none; background: transparent; color: #666; font-size: 14px; transition: all 0.3s ease;" id="btn-byhole-net-{{ $league->id }}" onclick="showHoleStatsByHoleMode('net', {{ $league->id }})">Net</button>
+                <div style="display: flex; gap: 6px; font-size: 0.5em;">
+                    <button style="padding: 8px 20px; cursor: pointer; font-weight: 600; border: none; background: var(--primary-color); color: white; border-radius: 8px; font-size: 14px; transition: all 0.3s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" id="btn-byhole-gross-{{ $league->id }}" onclick="showHoleStatsByHoleMode('gross', {{ $league->id }})">Gross</button>
+                    <button style="padding: 8px 20px; cursor: pointer; font-weight: 600; border: none; background: #f0f0f5; color: #666; border-radius: 8px; font-size: 14px; transition: all 0.3s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" id="btn-byhole-net-{{ $league->id }}" onclick="showHoleStatsByHoleMode('net', {{ $league->id }})">Net</button>
+                    <button style="padding: 8px 20px; cursor: pointer; font-weight: 600; border: none; background: #f0f0f5; color: #666; border-radius: 8px; font-size: 14px; transition: all 0.3s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" id="btn-byhole-vspar-{{ $league->id }}" onclick="showHoleStatsByHoleMode('vspar', {{ $league->id }})">vs. Par</button>
                 </div>
                 <span style="cursor: pointer; user-select: none; color: #e67e22; font-size: 0.6em;" onclick="toggleSection('totals-byhole-body-{{ $league->id }}')" id="toggle-totals-byhole-body-{{ $league->id }}">&#9650;</span>
             </div>

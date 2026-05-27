@@ -15,14 +15,20 @@
         if ($diff == 2)  return 'background: #fce4ec; color: #c62828; font-weight: 600;';  // double
         return 'background: #f8d7da; color: #721c24; font-weight: 700;';                   // triple+
     };
+    $vsParText = function($diff) {
+        if ($diff === null) return '-';
+        if ($diff == 0) return 'E';
+        return ($diff > 0 ? '+' : '') . (is_float($diff) ? number_format($diff, 1) : $diff);
+    };
 @endphp
 <div class="content-section">
     <h2 class="section-title" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
         <span>Player Stats</span>
         <div style="display: flex; align-items: center; gap: 10px;">
-            <div style="display: flex; background: #f0f0f5; border-radius: 8px; overflow: hidden; font-size: 0.5em;">
-                <button style="padding: 8px 20px; cursor: pointer; font-weight: 600; border: none; background: var(--primary-color); color: white; border-radius: 8px; font-size: 14px; transition: all 0.3s ease;" id="btn-ps-gross-{{ $league->id }}" onclick="togglePlayerStatsMode('gross', {{ $league->id }})">Gross</button>
-                <button style="padding: 8px 20px; cursor: pointer; font-weight: 600; border: none; background: transparent; color: #666; font-size: 14px; transition: all 0.3s ease;" id="btn-ps-net-{{ $league->id }}" onclick="togglePlayerStatsMode('net', {{ $league->id }})">Net</button>
+            <div style="display: flex; gap: 6px; font-size: 0.5em;">
+                <button style="padding: 8px 20px; cursor: pointer; font-weight: 600; border: none; background: var(--primary-color); color: white; border-radius: 8px; font-size: 14px; transition: all 0.3s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" id="btn-ps-gross-{{ $league->id }}" onclick="togglePlayerStatsMode('gross', {{ $league->id }})">Gross</button>
+                <button style="padding: 8px 20px; cursor: pointer; font-weight: 600; border: none; background: #f0f0f5; color: #666; border-radius: 8px; font-size: 14px; transition: all 0.3s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" id="btn-ps-net-{{ $league->id }}" onclick="togglePlayerStatsMode('net', {{ $league->id }})">Net</button>
+                <button style="padding: 8px 20px; cursor: pointer; font-weight: 600; border: none; background: #f0f0f5; color: #666; border-radius: 8px; font-size: 14px; transition: all 0.3s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" id="btn-ps-vspar-{{ $league->id }}" onclick="togglePlayerStatsMode('vspar', {{ $league->id }})">vs. Par</button>
             </div>
             <span style="cursor: pointer; user-select: none; color: #e67e22; font-size: 0.6em;" onclick="toggleSection('player-stats-body-{{ $league->id }}')" id="toggle-player-stats-body-{{ $league->id }}">&#9650;</span>
         </div>
@@ -175,6 +181,57 @@
                                                         </tbody>
                                                     </table>
                                                 </div>
+                                                <div id="ps-nine-vspar-{{ $league->id }}-{{ $player->id }}-{{ $key }}" class="scrollable-table" style="display: none;">
+                                                    <table style="font-size: 0.82em;">
+                                                        <thead>
+                                                            <tr>
+                                                                <th style="text-align: center; padding: 4px; font-size: 0.85em; background: {{ $key === 'front' ? 'var(--primary-color)' : '#e67e22' }}; color: white;">Hole</th>
+                                                                @for($h = 1; $h <= 9; $h++)
+                                                                    <th style="text-align: center; padding: 4px; width: 36px; background: {{ $key === 'front' ? 'var(--primary-color)' : '#e67e22' }}; color: white;">{{ $key === 'front' ? $h : $h + 9 }}</th>
+                                                                @endfor
+                                                                <th style="text-align: center; padding: 4px; background: {{ $key === 'front' ? 'var(--primary-color)' : '#e67e22' }}; color: white;">Tot</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr style="background: #f0f0f0;">
+                                                                <td style="text-align: center; padding: 3px; font-weight: 600; font-size: 0.85em;">Par</td>
+                                                                @php $parTotal = 0; @endphp
+                                                                @for($h = 1; $h <= 9; $h++)
+                                                                    @php $parTotal += $summary['hole_par'][$h] ?? 0; @endphp
+                                                                    <td style="text-align: center; padding: 3px; font-weight: 600;">{{ $summary['hole_par'][$h] ?? '-' }}</td>
+                                                                @endfor
+                                                                <td style="text-align: center; padding: 3px; font-weight: 700;">{{ $parTotal ?: '-' }}</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <td style="text-align: center; padding: 3px; font-weight: 600; font-size: 0.85em; color: var(--primary-color);">Avg</td>
+                                                                @php $avgTotal = 0; @endphp
+                                                                @for($h = 1; $h <= 9; $h++)
+                                                                    @php
+                                                                        $avg = $summary['hole_gross_avg'][$h];
+                                                                        $par = $summary['hole_par'][$h];
+                                                                        $avgTotal += $avg ?? 0;
+                                                                    @endphp
+                                                                    <td style="text-align: center; padding: 3px;">{{ $avg ?? '-' }}</td>
+                                                                @endfor
+                                                                <td style="text-align: center; padding: 3px; font-weight: 700; color: var(--primary-color);">{{ $avgTotal ? round($avgTotal, 1) : '-' }}</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <td style="text-align: center; padding: 3px; font-weight: 600; font-size: 0.85em; color: var(--primary-color);">vs Par</td>
+                                                                @php $diffTotal = 0; $hasAnyDiff = false; @endphp
+                                                                @for($h = 1; $h <= 9; $h++)
+                                                                    @php
+                                                                        $avg = $summary['hole_gross_avg'][$h];
+                                                                        $par = $summary['hole_par'][$h];
+                                                                        $diff = ($avg !== null && $par !== null) ? round($avg - $par, 1) : null;
+                                                                        if ($diff !== null) { $diffTotal += $diff; $hasAnyDiff = true; }
+                                                                    @endphp
+                                                                    <td style="text-align: center; padding: 3px; font-weight: 600; {{ $diff !== null ? $scoreColor($avg, $par) : '' }}">{{ $vsParText($diff) }}</td>
+                                                                @endfor
+                                                                <td style="text-align: center; padding: 3px; font-weight: 700; color: var(--primary-color);">{{ $hasAnyDiff ? $vsParText(round($diffTotal, 1)) : '-' }}</td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
                                             @else
                                                 <div style="text-align: center; padding: 12px; color: #999; font-size: 0.85em;">No {{ strtolower($label) }} rounds played.</div>
                                             @endif
@@ -246,6 +303,51 @@
                                                 <td style="text-align: center; {{ $ns !== null && $hp !== null ? $scoreColor($ns, $hp) : '' }}">{{ $ns ?? '-' }}</td>
                                             @endfor
                                             <td style="text-align: center; font-weight: 700; color: var(--primary-color);">{{ $week['net_total'] ?: '-' }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {{-- vs Par Table (gross diff per hole) --}}
+                        <div id="ps-vspar-{{ $league->id }}-{{ $player->id }}" class="scrollable-table" style="display: none;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th style="text-align: center;">Week</th>
+                                        <th style="text-align: center;">Date</th>
+                                        <th style="text-align: center;">Side</th>
+                                        @for($h = 1; $h <= 9; $h++)
+                                            <th style="text-align: center; width: 36px;">{{ $h }}</th>
+                                        @endfor
+                                        <th style="text-align: center; font-weight: 700;">Tot</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($weeks as $week)
+                                        @php
+                                            $roundDiff = 0;
+                                            $roundParTotal = 0;
+                                            $roundHasScore = false;
+                                            for ($h = $week['hole_start']; $h <= $week['hole_end']; $h++) {
+                                                $hp = $week['par'][$h] ?? null;
+                                                if ($hp !== null) $roundParTotal += $hp;
+                                            }
+                                        @endphp
+                                        <tr>
+                                            <td style="text-align: center; font-weight: 600; color: var(--primary-color);">{{ $week['week'] }}</td>
+                                            <td style="text-align: center; font-size: 0.85em; color: #666; white-space: nowrap;">{{ $week['date'] ? $week['date']->format('m-d-Y') : '-' }}</td>
+                                            <td style="text-align: center; font-size: 0.85em; color: #666;">{{ $week['side'] }}</td>
+                                            @for($h = $week['hole_start']; $h <= $week['hole_end']; $h++)
+                                                @php
+                                                    $gs = $week['gross'][$h] ?? null;
+                                                    $hp = $week['par'][$h] ?? null;
+                                                    $d = ($gs !== null && $hp !== null) ? $gs - $hp : null;
+                                                    if ($d !== null) { $roundDiff += $d; $roundHasScore = true; }
+                                                @endphp
+                                                <td style="text-align: center; font-weight: 600; {{ $gs !== null && $hp !== null ? $scoreColor($gs, $hp) : '' }}">{{ $vsParText($d) }}</td>
+                                            @endfor
+                                            <td style="text-align: center; font-weight: 700; color: var(--primary-color);">{{ $roundHasScore ? $vsParText($roundDiff) : '-' }}</td>
                                         </tr>
                                     @endforeach
                                 </tbody>
