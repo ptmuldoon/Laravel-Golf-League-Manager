@@ -385,38 +385,40 @@ class AdminController extends Controller
             // BOM for Excel UTF-8 compatibility
             fwrite($handle, "\xEF\xBB\xBF");
 
-            // Header row
+            // Header row — column names match the import format (ImportController::importScores)
             $header = [
-                'First Name', 'Last Name', 'Email',
-                'Course', 'Teebox', 'Date Played', 'Holes Played',
+                'first_name', 'last_name', 'email', 'phone_number',
+                'course_name', 'teebox', 'played_at', 'holes_played', 'nine_type',
             ];
             for ($i = 1; $i <= 18; $i++) {
-                $header[] = "Hole {$i}";
+                $header[] = "hole_{$i}";
             }
-            $header[] = 'Total Strokes';
             fputcsv($handle, $header);
 
             foreach ($rounds as $round) {
+                $scoresByHole = $round->scores->keyBy('hole_number');
+
+                // Derive nine_type from which holes were scored (no stored column).
+                $nineType = '';
+                if (($round->holes_played ?? 18) == 9) {
+                    $nineType = $scoresByHole->keys()->contains(fn ($h) => $h >= 10) ? 'back' : 'front';
+                }
+
                 $row = [
                     $round->player->first_name ?? '',
                     $round->player->last_name ?? '',
                     $round->player->email ?? '',
+                    $round->player->phone_number ?? '',
                     $round->golfCourse->name ?? '',
                     $round->teebox ?? '',
                     $round->played_at ?? '',
                     $round->holes_played ?? 18,
+                    $nineType,
                 ];
 
-                $scoresByHole = $round->scores->keyBy('hole_number');
-                $total = 0;
                 for ($i = 1; $i <= 18; $i++) {
-                    $strokes = $scoresByHole->has($i) ? $scoresByHole[$i]->strokes : '';
-                    $row[] = $strokes;
-                    if ($strokes !== '') {
-                        $total += $strokes;
-                    }
+                    $row[] = $scoresByHole->has($i) ? $scoresByHole[$i]->strokes : '';
                 }
-                $row[] = $total > 0 ? $total : '';
 
                 fputcsv($handle, $row);
             }
