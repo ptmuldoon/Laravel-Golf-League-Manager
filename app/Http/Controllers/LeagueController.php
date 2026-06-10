@@ -1458,7 +1458,7 @@ class LeagueController extends Controller
 
         $matches = $league->matches()
             ->where('week_number', $week)
-            ->with(['matchPlayers.player.handicapHistory', 'homeTeam', 'awayTeam', 'result', 'golfCourse.courseInfo'])
+            ->with(['matchPlayers.player.handicapHistory', 'matchPlayers.substitutePlayer.handicapHistory', 'homeTeam', 'awayTeam', 'result', 'golfCourse.courseInfo'])
             ->get();
 
         $calculator = app(MatchPlayCalculator::class);
@@ -1480,7 +1480,23 @@ class LeagueController extends Controller
                 $rating = $courseInfoHole1 ? (float) $courseInfoHole1->rating : null;
 
                 foreach ($match->matchPlayers as $mp) {
-                    $matchDateHandicap = $mp->player->handicapAsOf($match->match_date);
+                    // Refresh from the player actually playing the slot. When a
+                    // substitute is assigned, use the sub's handicap as of the
+                    // match date — not the originally scheduled player's —
+                    // otherwise saving scores reverts the sub's handicap to the
+                    // scheduled player and skews the match result. A name-only
+                    // sub (no player record) has no history, so leave its stored
+                    // handicap untouched.
+                    if ($mp->substitute_player_id) {
+                        $handicapPlayer = $mp->substitutePlayer;
+                    } elseif ($mp->substitute_name) {
+                        continue;
+                    } else {
+                        $handicapPlayer = $mp->player;
+                    }
+                    if (!$handicapPlayer) continue;
+
+                    $matchDateHandicap = $handicapPlayer->handicapAsOf($match->match_date);
                     if ($matchDateHandicap) {
                         $hi = (float) $matchDateHandicap->handicap_index;
                         $newCH = $slope ? round(($hi * $slope / 113) + ($rating - $par18)) : $mp->course_handicap;
