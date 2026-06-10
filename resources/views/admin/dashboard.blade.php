@@ -748,14 +748,12 @@
             $firstWeekMatch = $weekMatches->first();
             $allWeeks = $league->matches->pluck('week_number')->unique()->sort()->values();
 
-            // Build team player map for this league
+            // Build team player map for this league, keyed by team id. Players
+            // can be on more than one team in a league, so the modal resolves
+            // each slot's roster from the match's home/away team.
             $modalTeamPlayers = [];
-            $modalPlayerTeamId = [];
             foreach ($league->teams as $team) {
                 $modalTeamPlayers[$team->id] = $team->players->sortBy(['first_name', 'last_name'])->values();
-                foreach ($team->players as $p) {
-                    $modalPlayerTeamId[$p->id] = $team->id;
-                }
             }
             $weekNumber = $currentWeek;
             $firstMatch = $firstWeekMatch;
@@ -776,7 +774,6 @@
                             'firstMatch' => $firstMatch,
                             'weekNumber' => $weekNumber,
                             'modalTeamPlayers' => $modalTeamPlayers,
-                            'modalPlayerTeamId' => $modalPlayerTeamId,
                         ])
                     </div>
                     <div class="schedule-modal-footer">

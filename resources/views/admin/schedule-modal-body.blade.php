@@ -50,7 +50,7 @@
             {{-- Away side --}}
             <div class="side away">
                 @foreach($awayPlayers as $mp)
-                    @php $mpTeamId = $modalPlayerTeamId[$mp->player_id] ?? null; @endphp
+                    @php $mpTeamId = $match->away_team_id; @endphp
                     <div class="modal-player-row">
                         @if($weekLocked)
                             <span style="font-weight: 600; color: #dc3545; font-size: 0.9em;">
@@ -92,7 +92,7 @@
             {{-- Home side --}}
             <div class="side home">
                 @foreach($homePlayers as $mp)
-                    @php $mpTeamId = $modalPlayerTeamId[$mp->player_id] ?? null; @endphp
+                    @php $mpTeamId = $match->home_team_id; @endphp
                     <div class="modal-player-row">
                         @if($weekLocked)
                             <span style="font-weight: 600; color: #28a745; font-size: 0.9em;">

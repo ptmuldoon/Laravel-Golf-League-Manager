@@ -446,19 +446,18 @@ class AdminController extends Controller
 
         $firstMatch = $weekMatches->first();
 
-        // Build team player map
+        // Build team player map keyed by team id. Players can belong to more
+        // than one team in a league (e.g. a re-draft), so a player->team lookup
+        // is ambiguous; the modal resolves each slot's roster from the match's
+        // home/away team instead.
         $modalTeamPlayers = [];
-        $modalPlayerTeamId = [];
         foreach ($league->teams as $team) {
             $modalTeamPlayers[$team->id] = $team->players->sortBy(['first_name', 'last_name'])->values();
-            foreach ($team->players as $p) {
-                $modalPlayerTeamId[$p->id] = $team->id;
-            }
         }
 
         $html = view('admin.schedule-modal-body', compact(
             'league', 'weekMatches', 'firstMatch', 'weekNumber',
-            'modalTeamPlayers', 'modalPlayerTeamId'
+            'modalTeamPlayers'
         ))->render();
 
         return response()->json(['html' => $html, 'week' => (int)$weekNumber]);
