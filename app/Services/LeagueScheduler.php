@@ -23,11 +23,24 @@ class LeagueScheduler
      */
     public function generateSchedule(League $league, int $weeks = 16, ?LeagueSegment $segment = null)
     {
-        // Only use players assigned to this league
-        $players = $league->players()
+        // Get team assignments for team-based pairing (segment-scoped if applicable)
+        $playerTeams = $segment
+            ? $this->getSegmentPlayerTeamMap($segment)
+            : $this->getPlayerTeamMap($league);
+
+        // Only use players assigned to this league. When scheduling a specific
+        // segment (season), restrict the pool to the players drafted onto that
+        // segment's teams — otherwise every other season's players would be
+        // scheduled into extra foursomes.
+        $playersQuery = $league->players()
             ->orderBy('first_name')
-            ->orderBy('last_name')
-            ->get();
+            ->orderBy('last_name');
+
+        if ($segment) {
+            $playersQuery->whereIn('players.id', array_keys($playerTeams));
+        }
+
+        $players = $playersQuery->get();
 
         if ($players->count() < 4) {
             throw new \Exception('Need at least 4 players assigned to this league to create foursomes. Please add more players to the league first.');
@@ -35,11 +48,6 @@ class LeagueScheduler
 
         $schedule = [];
         $playerIds = $players->pluck('id')->toArray();
-
-        // Get team assignments for team-based pairing (segment-scoped if applicable)
-        $playerTeams = $segment
-            ? $this->getSegmentPlayerTeamMap($segment)
-            : $this->getPlayerTeamMap($league);
 
         // Track player pairings to ensure variety
         $pairings = [];

@@ -950,6 +950,30 @@ class LeagueController extends Controller
     /**
      * Add additional weeks to an existing schedule
      */
+    /**
+     * Resolve the LeagueSegment (season) whose [start_week, end_week] range
+     * contains the given week number. Returns null when the league has no
+     * segments configured or the week falls outside every segment's range.
+     */
+    private function segmentForWeek(League $league, int $weekNumber): ?LeagueSegment
+    {
+        return $league->segments->first(function ($segment) use ($weekNumber) {
+            return $weekNumber >= $segment->start_week && $weekNumber <= $segment->end_week;
+        });
+    }
+
+    /**
+     * A season is "drafted" once at least two of its teams have players
+     * assigned. Empty team shells (created before the draft) don't count.
+     */
+    private function segmentIsDrafted(League $league, LeagueSegment $segment): bool
+    {
+        return $league->teams
+            ->where('league_segment_id', $segment->id)
+            ->filter(fn ($team) => $team->players->count() > 0)
+            ->count() >= 2;
+    }
+
     public function addWeeks(Request $request, $leagueId)
     {
         $validated = $request->validate([
@@ -995,9 +1019,19 @@ class LeagueController extends Controller
 
         $scheduler = new \App\Services\LeagueScheduler(app(\App\Services\MatchPlayCalculator::class));
 
+        $additionalWeeks = $validated['additional_weeks'];
+
+        // Resolve the season (segment) the new weeks belong to. If that season
+        // hasn't been drafted yet (fewer than 2 of its teams have players),
+        // fall back to creating empty matchups instead of borrowing another
+        // season's teams/players.
+        $targetSegment = $this->segmentForWeek($league, $maxWeek + 1);
+        if ($targetSegment && !$this->segmentIsDrafted($league, $targetSegment)) {
+            return $this->addEmptyWeeks($request, $leagueId);
+        }
+
         try {
-            $additionalWeeks = $validated['additional_weeks'];
-            $scheduleData = $scheduler->generateSchedule($league, $additionalWeeks);
+            $scheduleData = $scheduler->generateSchedule($league, $additionalWeeks, $targetSegment);
 
             // Start date is one week after the last week's date
             $startDate = \Carbon\Carbon::parse($lastWeekDate)->addWeek();
@@ -1014,7 +1048,8 @@ class LeagueController extends Controller
                 $startTeeTime,
                 $teeTimeInterval,
                 $maxWeek,
-                $lastScoreMode
+                $lastScoreMode,
+                $targetSegment
             );
 
             return redirect()->route('admin.leagues.scheduleOverview', $leagueId)
@@ -1046,11 +1081,22 @@ class LeagueController extends Controller
         $lastScoringType = $lastMatch->scoring_type ?? 'best_ball_match_play';
         $lastScoreMode = $lastMatch->score_mode ?? 'net';
 
+        // Resolve the season (segment) the new weeks belong to, and scope team
+        // lookups to that season's teams. When the league has no segments, fall
+        // back to all teams (legacy single-season behavior).
+        $targetSegment = $this->segmentForWeek($league, $maxWeek + 1);
+        $segmentTeams = $targetSegment
+            ? $league->teams->where('league_segment_id', $targetSegment->id)->values()
+            : $league->teams;
+        // Only teams that actually have players count as drafted; empty team
+        // shells created before the draft are ignored.
+        $draftedTeams = $segmentTeams->filter(fn($t) => $t->players->count() > 0)->values();
+
         // Calculate matches per week based on league players (4 per match)
         // For team-based leagues, use the largest team's pair count so all players get a slot
         $matchesPerWeek = 1;
-        if ($league->teams->count() >= 2) {
-            $maxTeamSize = $league->teams->max(fn($t) => $t->players->count());
+        if ($draftedTeams->count() >= 2) {
+            $maxTeamSize = $draftedTeams->max(fn($t) => $t->players->count());
             $matchesPerWeek = max(1, (int) ceil($maxTeamSize / 2));
         } elseif ($league->players->count() > 0) {
             $matchesPerWeek = max(1, (int) ceil($league->players->count() / 4));
@@ -1082,15 +1128,20 @@ class LeagueController extends Controller
         $newHoles = ($lastHoles === 'front_9') ? 'back_9' : 'front_9';
         $startDate = \Carbon\Carbon::parse($lastWeekDate)->addWeek();
 
-        // Determine team IDs for empty matches
+        // Determine team IDs for empty matches, scoped to the target season.
+        // Only copy the previous week's teams when that week is in the same
+        // season; otherwise seed from this season's teams. When the season has
+        // no teams drafted yet, leave them null (truly empty matchups).
         $homeTeamId = null;
         $awayTeamId = null;
-        if ($lastMatch && $lastMatch->home_team_id) {
+        $lastMatchSegment = $lastMatch ? $this->segmentForWeek($league, $lastMatch->week_number) : null;
+        $sameSegment = optional($lastMatchSegment)->id === optional($targetSegment)->id;
+        if ($lastMatch && $lastMatch->home_team_id && $sameSegment) {
             $homeTeamId = $lastMatch->home_team_id;
             $awayTeamId = $lastMatch->away_team_id;
-        } elseif ($league->teams->count() >= 2) {
-            $homeTeamId = $league->teams->first()->id;
-            $awayTeamId = $league->teams->skip(1)->first()->id;
+        } elseif ($draftedTeams->count() >= 2) {
+            $homeTeamId = $draftedTeams->first()->id;
+            $awayTeamId = $draftedTeams->skip(1)->first()->id;
         }
 
         \Illuminate\Support\Facades\DB::transaction(function () use ($league, $additionalWeeks, $maxWeek, $startDate, $newHoles, $lastScoringType, $lastScoreMode, $matchesPerWeek, $startTeeTime, $teeTimeInterval, $homeTeamId, $awayTeamId) {
