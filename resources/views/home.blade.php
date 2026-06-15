@@ -914,11 +914,25 @@
                                 </div>
                                 @foreach($nextWeekMatches as $upcoming)
                                     @php
-                                        $shortName = function($mp) {
-                                            if ($mp->player && $mp->player->first_name && $mp->player->last_name) {
-                                                return strtoupper(substr($mp->player->first_name, 0, 1)) . '. ' . $mp->player->last_name;
+                                        $abbrev = function($player) {
+                                            if ($player && $player->first_name && $player->last_name) {
+                                                return strtoupper(substr($player->first_name, 0, 1)) . '. ' . $player->last_name;
                                             }
-                                            return $mp->player ? $mp->player->name : ($mp->substitute_name ?? '');
+                                            return $player ? $player->name : '';
+                                        };
+                                        $shortName = function($mp) use ($abbrev) {
+                                            $base = $abbrev($mp->player);
+                                            // Note the substitute (if any) alongside the scheduled player.
+                                            $sub = '';
+                                            if ($mp->substitute_player_id && $mp->substitutePlayer) {
+                                                $sub = $abbrev($mp->substitutePlayer);
+                                            } elseif ($mp->substitute_name) {
+                                                $sub = $mp->substitute_name;
+                                            }
+                                            if ($sub !== '') {
+                                                return $base !== '' ? "{$base} (sub: {$sub})" : "{$sub} (sub)";
+                                            }
+                                            return $base;
                                         };
                                         $homePlayers = $upcoming->matchPlayers->where('position_in_pairing', '<=', 2)
                                             ->map($shortName)->filter()->map(fn($n) => e($n))->implode(' &bull; ');

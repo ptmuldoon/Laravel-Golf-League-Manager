@@ -419,7 +419,7 @@ class HomeController extends Controller
         // Get upcoming matches for selected league (next scheduled week)
         $upcomingMatchesQuery = LeagueMatch::with([
                 'homeTeam', 'awayTeam', 'league.teams.players',
-                'golfCourse', 'matchPlayers.player'
+                'golfCourse', 'matchPlayers.player', 'matchPlayers.substitutePlayer'
             ])
             ->whereIn('status', ['scheduled', 'in_progress']);
         if ($selectedLeagueId) {
