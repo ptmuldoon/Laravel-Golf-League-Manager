@@ -23,14 +23,17 @@
                             <td style="background: white; padding: 20px;">
                                 <h2 style="color: {{ $themeSettings['primary'] }}; font-size: 18px; margin: 0 0 4px 0;">Week {{ $nextWeekNumber }} Schedule</h2>
                                 @php $firstNext = $nextWeekMatches->first(); @endphp
-                                @if($firstNext->match_date)
-                                    <p style="color: #888; font-size: 13px; margin: 0 0 12px 0;">
+                                <p style="color: #888; font-size: 13px; margin: 0 0 12px 0;">
+                                    @if($firstNext->match_date)
                                         {{ $firstNext->match_date->format('l, M d, Y') }}
                                         @if($firstNext->golfCourse)
                                             &bull; {{ $firstNext->golfCourse->name }}
                                         @endif
-                                    </p>
-                                @endif
+                                        <br>
+                                    @endif
+                                    {{ $firstNext->holes === 'back_9' ? 'Back 9' : 'Front 9' }}
+                                    &bull; {{ \App\Models\ScoringSetting::scoringTypes()[$firstNext->scoring_type] ?? ucfirst(str_replace('_', ' ', $firstNext->scoring_type)) }}
+                                </p>
                                 <table width="100%" cellpadding="6" cellspacing="0" style="border-collapse: collapse; font-size: 13px;">
                                     <tr>
                                         <th style="background: {{ $themeSettings['primary_light'] }}; color: {{ $themeSettings['primary'] }}; text-align: left; padding: 8px 6px; border-bottom: 2px solid #ddd; font-size: 12px;">Time</th>
@@ -74,6 +77,35 @@
                                                     <br><span style="color: #888; font-size: 12px;">{{ $awayPlayers }}</span>
                                                 @endif
                                             </td>
+                                        </tr>
+                                    @endforeach
+                                </table>
+                            </td>
+                        </tr>
+                    @endif
+
+                    {{-- Current Week Team Results --}}
+                    @if($weeklyResults->isNotEmpty())
+                        <tr>
+                            <td style="background: white; padding: 20px; border-top: 3px solid #f0f0f0;">
+                                <h2 style="color: {{ $themeSettings['primary'] }}; font-size: 18px; margin: 0 0 12px 0;">Week {{ $weekNumber }} Team Results</h2>
+                                <table width="100%" cellpadding="6" cellspacing="0" style="border-collapse: collapse; font-size: 13px;">
+                                    <tr>
+                                        <th style="background: {{ $themeSettings['primary_light'] }}; color: {{ $themeSettings['primary'] }}; text-align: left; padding: 8px 6px; border-bottom: 2px solid #ddd; font-size: 12px;">#</th>
+                                        <th style="background: {{ $themeSettings['primary_light'] }}; color: {{ $themeSettings['primary'] }}; text-align: left; padding: 8px 6px; border-bottom: 2px solid #ddd; font-size: 12px;">Team</th>
+                                        <th style="background: {{ $themeSettings['primary_light'] }}; color: {{ $themeSettings['primary'] }}; text-align: center; padding: 8px 6px; border-bottom: 2px solid #ddd; font-size: 12px;">W</th>
+                                        <th style="background: {{ $themeSettings['primary_light'] }}; color: {{ $themeSettings['primary'] }}; text-align: center; padding: 8px 6px; border-bottom: 2px solid #ddd; font-size: 12px;">L</th>
+                                        <th style="background: {{ $themeSettings['primary_light'] }}; color: {{ $themeSettings['primary'] }}; text-align: center; padding: 8px 6px; border-bottom: 2px solid #ddd; font-size: 12px;">T</th>
+                                        <th style="background: {{ $themeSettings['primary_light'] }}; color: {{ $themeSettings['primary'] }}; text-align: center; padding: 8px 6px; border-bottom: 2px solid #ddd; font-size: 12px;">Pts</th>
+                                    </tr>
+                                    @foreach($weeklyResults as $index => $team)
+                                        <tr>
+                                            <td style="padding: 6px; border-bottom: 1px solid #f0f0f0; font-weight: 600; color: {{ $themeSettings['primary'] }};">{{ $index + 1 }}</td>
+                                            <td style="padding: 6px; border-bottom: 1px solid #f0f0f0; font-weight: 600;">{{ $team->name }}</td>
+                                            <td style="padding: 6px; border-bottom: 1px solid #f0f0f0; text-align: center; color: #28a745; font-weight: 600;">{{ $team->cw_wins }}</td>
+                                            <td style="padding: 6px; border-bottom: 1px solid #f0f0f0; text-align: center; color: #dc3545; font-weight: 600;">{{ $team->cw_losses }}</td>
+                                            <td style="padding: 6px; border-bottom: 1px solid #f0f0f0; text-align: center; color: #856404; font-weight: 600;">{{ $team->cw_ties }}</td>
+                                            <td style="padding: 6px; border-bottom: 1px solid #f0f0f0; text-align: center; font-weight: 600; color: {{ $themeSettings['primary'] }};">{{ $team->cw_points }}</td>
                                         </tr>
                                     @endforeach
                                 </table>

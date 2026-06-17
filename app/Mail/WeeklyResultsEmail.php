@@ -17,6 +17,7 @@ class WeeklyResultsEmail extends Mailable
         public League $league,
         public int $weekNumber,
         public $standings,
+        public $weeklyResults,
         public $par3Winners,
         public $playerStandings,
         public int $nextWeekNumber,

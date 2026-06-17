@@ -1911,7 +1911,7 @@ class LeagueController extends Controller
         try {
             $mailable = new WeeklyResultsEmail(
                 $league, $weekNumber,
-                $data['standings'], $data['par3Winners'],
+                $data['standings'], $data['weeklyResults'], $data['par3Winners'],
                 $data['playerStandings'], $data['nextWeekNumber'],
                 $data['nextWeekMatches'], $data['nextWeekTeamNames']
             );
@@ -2225,7 +2225,18 @@ class LeagueController extends Controller
         $lines[] = "{$league->name} Wk{$weekNumber} Results";
         $lines[] = '';
 
-        // Team standings
+        // Current week team results
+        if (($data['weeklyResults'] ?? collect())->isNotEmpty()) {
+            $lines[] = "WK{$weekNumber} RESULTS:";
+            foreach ($data['weeklyResults'] as $i => $team) {
+                $pos = $i + 1;
+                $name = mb_substr($team->name, 0, 12);
+                $lines[] = "{$pos}. {$name} {$team->cw_wins}-{$team->cw_losses}-{$team->cw_ties} ({$team->cw_points}pts)";
+            }
+            $lines[] = '';
+        }
+
+        // Team standings (season to date)
         if ($data['standings']->isNotEmpty()) {
             $lines[] = 'STANDINGS:';
             foreach ($data['standings'] as $i => $team) {
@@ -2250,6 +2261,11 @@ class LeagueController extends Controller
         // Next week schedule
         if ($data['nextWeekMatches']->isNotEmpty()) {
             $lines[] = "WK{$data['nextWeekNumber']} SCHEDULE:";
+            $firstNext = $data['nextWeekMatches']->first();
+            $holesLabel = $firstNext->holes === 'back_9' ? 'Back 9' : 'Front 9';
+            $fmtLabel = \App\Models\ScoringSetting::scoringTypes()[$firstNext->scoring_type]
+                ?? ucfirst(str_replace('_', ' ', $firstNext->scoring_type));
+            $lines[] = "{$holesLabel} - {$fmtLabel}";
             $shortName = function ($mp) {
                 if ($mp->player && $mp->player->first_name && $mp->player->last_name) {
                     return mb_substr($mp->player->first_name, 0, 1) . '.' . $mp->player->last_name;
@@ -2869,54 +2885,62 @@ class LeagueController extends Controller
             ->where('week_number', '<=', $weekNumber)
             ->get();
 
-        // Build team standings through Week X
-        $teamStats = [];
-        foreach ($league->teams as $team) {
-            $teamStats[$team->id] = ['wins' => 0, 'losses' => 0, 'ties' => 0, 'points' => 0];
-        }
-        foreach ($matchesThroughWeek as $match) {
-            if (!$match->result) continue;
-            $result = $match->result;
-            $homeId = $match->home_team_id;
-            $awayId = $match->away_team_id;
-
-            if ($homeId && isset($teamStats[$homeId])) {
-                $teamStats[$homeId]['points'] += ($result->team_points_home ?? 0);
-                if ($result->winning_team_id === null) {
-                    $teamStats[$homeId]['ties']++;
-                } elseif ($result->winning_team_id == $homeId) {
-                    $teamStats[$homeId]['wins']++;
-                } else {
-                    $teamStats[$homeId]['losses']++;
+        // Accumulate W/L/T/points for a given set of completed matches.
+        $accumulate = function ($matches) use ($league) {
+            $stats = [];
+            foreach ($league->teams as $team) {
+                $stats[$team->id] = ['wins' => 0, 'losses' => 0, 'ties' => 0, 'points' => 0];
+            }
+            foreach ($matches as $match) {
+                if (!$match->result) continue;
+                $result = $match->result;
+                foreach ([
+                    [$match->home_team_id, $result->team_points_home ?? 0],
+                    [$match->away_team_id, $result->team_points_away ?? 0],
+                ] as [$teamId, $points]) {
+                    if (!$teamId || !isset($stats[$teamId])) continue;
+                    $stats[$teamId]['points'] += $points;
+                    if ($result->winning_team_id === null) {
+                        $stats[$teamId]['ties']++;
+                    } elseif ($result->winning_team_id == $teamId) {
+                        $stats[$teamId]['wins']++;
+                    } else {
+                        $stats[$teamId]['losses']++;
+                    }
                 }
             }
-            if ($awayId && isset($teamStats[$awayId])) {
-                $teamStats[$awayId]['points'] += ($result->team_points_away ?? 0);
-                if ($result->winning_team_id === null) {
-                    $teamStats[$awayId]['ties']++;
-                } elseif ($result->winning_team_id == $awayId) {
-                    $teamStats[$awayId]['wins']++;
-                } else {
-                    $teamStats[$awayId]['losses']++;
-                }
-            }
-        }
+            return $stats;
+        };
 
-        // Build standings collection with calculated stats
-        $allTeams = $league->segments->isNotEmpty()
-            ? $league->segments->flatMap(fn($seg) => $seg->teams)
+        // Season-to-date (through Week X) and current-week-only stats.
+        $teamStats = $accumulate($matchesThroughWeek);
+        $currentWeekStats = $accumulate($matchesThroughWeek->where('week_number', $weekNumber));
+
+        // For segmented leagues, show only the season (segment) the emailed week
+        // falls in, not every season's teams.
+        $currentSegment = $league->segments->first(
+            fn($seg) => $weekNumber >= $seg->start_week && $weekNumber <= $seg->end_week
+        );
+        $allTeams = $currentSegment
+            ? $currentSegment->teams
             : $league->teams;
 
-        $standings = $allTeams->map(function ($team) use ($teamStats) {
-            $stats = $teamStats[$team->id] ?? ['wins' => 0, 'losses' => 0, 'ties' => 0, 'points' => 0];
-            $team->setAttribute('week_wins', $stats['wins']);
-            $team->setAttribute('week_losses', $stats['losses']);
-            $team->setAttribute('week_ties', $stats['ties']);
-            $team->setAttribute('week_points', $stats['points']);
-            $total = $stats['wins'] + $stats['losses'] + $stats['ties'];
-            $team->setAttribute('week_win_pct', $total > 0 ? round((($stats['wins'] + 0.5 * $stats['ties']) / $total) * 100, 1) : 0);
-            return $team;
-        })->sortByDesc('week_points')->values();
+        // Attach both season-to-date (week_*) and current-week (cw_*) stats to
+        // each team; the same team objects back both standings collections.
+        foreach ($allTeams as $team) {
+            foreach ([['week', $teamStats], ['cw', $currentWeekStats]] as [$prefix, $statSet]) {
+                $s = $statSet[$team->id] ?? ['wins' => 0, 'losses' => 0, 'ties' => 0, 'points' => 0];
+                $total = $s['wins'] + $s['losses'] + $s['ties'];
+                $team->setAttribute($prefix . '_wins', $s['wins']);
+                $team->setAttribute($prefix . '_losses', $s['losses']);
+                $team->setAttribute($prefix . '_ties', $s['ties']);
+                $team->setAttribute($prefix . '_points', $s['points']);
+                $team->setAttribute($prefix . '_win_pct', $total > 0 ? round((($s['wins'] + 0.5 * $s['ties']) / $total) * 100, 1) : 0);
+            }
+        }
+
+        $standings = $allTeams->sortByDesc('week_points')->values();
+        $weeklyResults = $allTeams->sortByDesc('cw_points')->values();
 
         // Par 3 winners for this week
         $par3Winners = Par3Winner::where('league_id', $league->id)
@@ -3039,6 +3063,6 @@ class LeagueController extends Controller
             }
         }
 
-        return compact('standings', 'par3Winners', 'playerStandings', 'nextWeekNumber', 'nextWeekMatches', 'nextWeekTeamNames');
+        return compact('standings', 'weeklyResults', 'par3Winners', 'playerStandings', 'nextWeekNumber', 'nextWeekMatches', 'nextWeekTeamNames');
     }
 }
