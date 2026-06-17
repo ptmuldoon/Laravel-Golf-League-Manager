@@ -10,11 +10,32 @@ class Team extends Model
         'league_id',
         'league_segment_id',
         'name',
+        'color',
         'captain_id',
         'wins',
         'losses',
         'ties',
     ];
+
+    /**
+     * Palette of selectable team colors (hex). Used by the team manager's
+     * color picker and validated on save.
+     */
+    public static function colorPalette(): array
+    {
+        return [
+            '#dc3545', // red
+            '#2563eb', // blue
+            '#16a34a', // green
+            '#f59e0b', // amber
+            '#7c3aed', // purple
+            '#0d9488', // teal
+            '#db2777', // pink
+            '#ea580c', // orange
+            '#475569', // slate
+            '#000000', // black
+        ];
+    }
 
     public function league()
     {

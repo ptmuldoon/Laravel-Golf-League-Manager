@@ -33,6 +33,7 @@ class TeamController extends Controller
             'league_id' => 'required|exists:leagues,id',
             'league_segment_id' => 'nullable|exists:league_segments,id',
             'name' => 'required|string|max:255',
+            'color' => ['nullable', \Illuminate\Validation\Rule::in(Team::colorPalette())],
             'captain_id' => 'nullable|exists:players,id',
         ]);
 
@@ -70,8 +71,15 @@ class TeamController extends Controller
      */
     public function update(Request $request, $id)
     {
+        // A blank swatch ("clear") arrives as "" — normalize to null so it
+        // passes the palette rule and clears the stored color.
+        if ($request->has('color') && $request->input('color') === '') {
+            $request->merge(['color' => null]);
+        }
+
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255',
+            'color' => ['sometimes', 'nullable', \Illuminate\Validation\Rule::in(Team::colorPalette())],
             'captain_id' => 'nullable|exists:players,id',
         ]);
 

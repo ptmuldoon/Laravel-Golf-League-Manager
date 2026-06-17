@@ -2,7 +2,7 @@
     <div class="team-card-header">
         <div class="team-name-area">
             <div class="team-name-display" id="name-display-{{ $team->id }}" style="display: flex; align-items: center; gap: 6px;">
-                <span class="team-name">{{ $team->name }}</span>
+                <span class="team-name"@if($team->color) style="color: {{ $team->color }};"@endif>{{ $team->name }}</span>
                 <button type="button" class="edit-name-btn" onclick="showEditName({{ $team->id }})">✏️</button>
             </div>
             <form class="edit-name-form" id="name-form-{{ $team->id }}" onsubmit="return saveTeamName(event, {{ $team->id }})">
@@ -27,6 +27,20 @@
             <span>Capt: {{ $team->captain->name }}</span>
         @endif
     </div>
+
+    <form action="{{ route('admin.teams.update', $team->id) }}" method="POST" class="team-color-form" style="display: flex; align-items: center; gap: 5px; padding: 6px 0; flex-wrap: wrap;">
+        @csrf
+        @method('PUT')
+        <span style="font-size: 0.8em; color: #666; white-space: nowrap; margin-right: 2px;">Color:</span>
+        @foreach(\App\Models\Team::colorPalette() as $swatch)
+            <button type="submit" name="color" value="{{ $swatch }}" title="{{ $swatch }}"
+                style="width: 20px; height: 20px; padding: 0; border-radius: 50%; cursor: pointer; background: {{ $swatch }}; border: 2px solid {{ $team->color === $swatch ? '#333' : 'transparent' }}; box-shadow: 0 0 0 1px #ccc;{{ $team->color === $swatch ? ' outline: 2px solid #333; outline-offset: 1px;' : '' }}"></button>
+        @endforeach
+        @if($team->color)
+            <button type="submit" name="color" value="" title="Clear color"
+                style="font-size: 0.75em; color: #888; background: none; border: none; cursor: pointer; text-decoration: underline; margin-left: 2px;">clear</button>
+        @endif
+    </form>
 
     <div class="team-drop-zone" id="team-zone-{{ $team->id }}" data-team-id="{{ $team->id }}">
         @if($team->players->isEmpty())

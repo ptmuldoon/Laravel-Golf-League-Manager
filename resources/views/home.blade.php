@@ -727,6 +727,37 @@
                 </div>
             @endif
             @foreach($activeLeagues as $league)
+                @php
+                    // Color per team (keyed by id). Use the admin-chosen color when
+                    // set, otherwise fall back to first team Red, second team Blue.
+                    $teamColorFallback = ['#dc3545', '#2563eb'];
+                    $teamColors = [];
+                    foreach ($league->teams->sortBy('id')->values() as $tci => $tcTeam) {
+                        $teamColors[$tcTeam->id] = $tcTeam->color ?: ($teamColorFallback[$tci] ?? null);
+                    }
+
+                    // Per-player team color for each season (segment), so the player
+                    // standings can recolor names when a season tab is selected.
+                    // Same fallback (red/blue) applies within each season.
+                    $playerSegTabs = $league->segments->sortBy('display_order')->values();
+                    $firstSegmentId = $playerSegTabs->isNotEmpty() ? $playerSegTabs->first()->id : null;
+                    $playerSeasonColors = []; // [playerId][segmentId] = color
+                    foreach ($playerSegTabs as $pscSeg) {
+                        foreach ($pscSeg->teams->sortBy('id')->values() as $sti => $stTeam) {
+                            $stColor = $stTeam->color ?: ($teamColorFallback[$sti] ?? null);
+                            foreach ($stTeam->players as $stPlayer) {
+                                $playerSeasonColors[$stPlayer->id][$pscSeg->id] = $stColor;
+                            }
+                        }
+                    }
+                    // No-segment leagues: a single color per player from their team.
+                    $playerDefaultColor = []; // [playerId] = color
+                    foreach ($league->teams as $pdcTeam) {
+                        foreach ($pdcTeam->players as $pdcPlayer) {
+                            $playerDefaultColor[$pdcPlayer->id] = $teamColors[$pdcTeam->id] ?? null;
+                        }
+                    }
+                @endphp
                 <!-- League Info -->
                 <div class="content-section">
                     <h2 class="section-title" style="margin-bottom: 10px;">
@@ -796,7 +827,7 @@
                                                                     {{ $index === 0 ? '🥇' : ($index === 1 ? '🥈' : ($index === 2 ? '🥉' : $index + 1)) }}
                                                                 </td>
                                                                 <td style="white-space: nowrap; border-right: 3px solid #d0d5e0; padding-right: 12px;">
-                                                                    <a href="{{ route('admin.teams.show', $team->id) }}" class="team-link">
+                                                                    <a href="{{ route('admin.teams.show', $team->id) }}" class="team-link" @isset($teamColors[$team->id])style="color: {{ $teamColors[$team->id] }};"@endisset>
                                                                         {{ $team->name }}
                                                                     </a>
                                                                 </td>
@@ -850,7 +881,7 @@
                                                         {{ $index === 0 ? '🥇' : ($index === 1 ? '🥈' : ($index === 2 ? '🥉' : $index + 1)) }}
                                                     </td>
                                                     <td style="white-space: nowrap; border-right: 3px solid #d0d5e0; padding-right: 12px;">
-                                                        <a href="{{ route('admin.teams.show', $team->id) }}" class="team-link">
+                                                        <a href="{{ route('admin.teams.show', $team->id) }}" class="team-link" @isset($teamColors[$team->id])style="color: {{ $teamColors[$team->id] }};"@endisset>
                                                             {{ $team->name }}
                                                         </a>
                                                     </td>
@@ -1016,7 +1047,13 @@
                                                 {{ $index === 0 ? '🥇' : ($index === 1 ? '🥈' : ($index === 2 ? '🥉' : $index + 1)) }}
                                             </td>
                                             <td style="white-space: nowrap;">
-                                                <a href="{{ route('players.show', $stat['player']->id) }}" class="team-link">{{ $stat['player']->name }}</a>
+                                                @php
+                                                    $pSeasonColors = $playerSeasonColors[$stat['player']->id] ?? [];
+                                                    $pInitColor = $firstSegmentId
+                                                        ? ($pSeasonColors[$firstSegmentId] ?? null)
+                                                        : ($playerDefaultColor[$stat['player']->id] ?? null);
+                                                @endphp
+                                                <a href="{{ route('players.show', $stat['player']->id) }}" class="team-link player-name-link" data-season-colors='@json($pSeasonColors)'@if($pInitColor) style="color: {{ $pInitColor }};"@endif>{{ $stat['player']->name }}</a>
                                             </td>
                                             <td>{{ $stat['current_hi'] ?? '-' }}</td>
                                             <td style="color: #888; font-size: 0.85em;">{{ $stat['current_ch'] ?? '-' }}</td>
@@ -1360,7 +1397,20 @@
             tab.style.background = 'var(--primary-color)';
             tab.style.color = 'white';
             tab.style.borderColor = 'var(--primary-color)';
+            recolorPlayerNames(leagueId, segmentId);
             checkScrollableOverflow();
+        }
+
+        // Recolor player-standings names to match the selected season's team colors.
+        function recolorPlayerNames(leagueId, segmentId) {
+            var table = document.getElementById('player-standings-table-' + leagueId);
+            if (!table) return;
+            table.querySelectorAll('.player-name-link').forEach(function(el) {
+                var map = {};
+                try { map = JSON.parse(el.getAttribute('data-season-colors') || '{}'); } catch (e) {}
+                var color = map[segmentId];
+                el.style.color = color ? color : '';
+            });
         }
 
         // Detect horizontally overflowing tables and show scroll fade hint
