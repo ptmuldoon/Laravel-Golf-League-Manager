@@ -466,6 +466,49 @@ class HomeController extends Controller
                 ->orderBy('week_number')
                 ->orderBy('hole_number')
                 ->get();
+
+            // Attach each winner's team color for the season/week they won in,
+            // so the Par 3 Winners table can color-code names. Mirrors the
+            // standings color logic (admin color, else red/blue by team order).
+            $selLeague = $activeLeagues->firstWhere('id', (int) $selectedLeagueId);
+            if ($selLeague && $par3Winners->isNotEmpty()) {
+                $colorFallback = ['#dc3545', '#2563eb'];
+
+                // week number -> segment id
+                $weekSegment = [];
+                foreach ($selLeague->segments as $seg) {
+                    for ($w = $seg->start_week; $w <= $seg->end_week; $w++) {
+                        $weekSegment[$w] = $seg->id;
+                    }
+                }
+
+                // segment id -> player id -> color
+                $segPlayerColor = [];
+                foreach ($selLeague->segments as $seg) {
+                    foreach ($seg->teams->sortBy('id')->values() as $i => $team) {
+                        $color = $team->color ?: ($colorFallback[$i] ?? null);
+                        foreach ($team->players as $p) {
+                            $segPlayerColor[$seg->id][$p->id] = $color;
+                        }
+                    }
+                }
+
+                // Non-segment leagues: a single color per player.
+                $defaultPlayerColor = [];
+                foreach ($selLeague->teams->sortBy('id')->values() as $i => $team) {
+                    $color = $team->color ?: ($colorFallback[$i] ?? null);
+                    foreach ($team->players as $p) {
+                        $defaultPlayerColor[$p->id] = $color;
+                    }
+                }
+
+                foreach ($par3Winners as $winner) {
+                    $segId = $weekSegment[$winner->week_number] ?? null;
+                    $winner->team_color = ($segId !== null && isset($segPlayerColor[$segId][$winner->player_id]))
+                        ? $segPlayerColor[$segId][$winner->player_id]
+                        : ($defaultPlayerColor[$winner->player_id] ?? null);
+                }
+            }
         }
 
         // Get current (most recently completed) week's match results for selected league

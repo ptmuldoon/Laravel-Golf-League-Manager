@@ -935,13 +935,15 @@
                                 $firstMatch = $nextWeekMatches->first();
                                 $homeTeamName = $matchTeamNames[$firstMatch->id]['home'] ?? 'TBD';
                                 $awayTeamName = $matchTeamNames[$firstMatch->id]['away'] ?? 'TBD';
+                                $homeTeamColor = $teamColors[$firstMatch->home_team_id] ?? null;
+                                $awayTeamColor = $teamColors[$firstMatch->away_team_id] ?? null;
                             @endphp
                             <div class="tee-time-grid">
                                 <div class="tee-row tee-row-header">
                                     <div></div>
-                                    <div class="tee-time-side away" style="color: var(--primary-color); font-weight: 700;">{{ $homeTeamName }}</div>
+                                    <div class="tee-time-side away" style="color: {{ $homeTeamColor ?: 'var(--primary-color)' }}; font-weight: 700;">{{ $homeTeamName }}</div>
                                     <div class="tee-time-vs" style="color: var(--primary-color); font-weight: 600;">vs.</div>
-                                    <div class="tee-time-side" style="color: var(--primary-color); font-weight: 700;">{{ $awayTeamName }}</div>
+                                    <div class="tee-time-side" style="color: {{ $awayTeamColor ?: 'var(--primary-color)' }}; font-weight: 700;">{{ $awayTeamName }}</div>
                                 </div>
                                 @foreach($nextWeekMatches as $upcoming)
                                     @php
@@ -1061,7 +1063,7 @@
                                             <td class="pw-gross" style="text-align: center;">{{ $wd && $wd['gross'] !== null ? $wd['gross'] : '-' }}</td>
                                             <td class="pw-pts" style="text-align: center; font-weight: 600; color: var(--primary-color); border-right: 3px solid #d0d5e0; padding-right: 12px;">{{ $wd && $wd['points'] !== null ? $wd['points'] : '-' }}</td>
                                             <td style="border-left: 3px solid #d0d5e0; padding-left: 12px;">{{ $stat['matches_played'] }}</td>
-                                            <td class="stat-highlight">{{ $stat['avg_score'] ?? '-' }}</td>
+                                            <td class="stat-highlight">{{ isset($stat['avg_score']) ? number_format($stat['avg_score'], 1) : '-' }}</td>
                                             <td style="font-weight: 600; color: var(--primary-color);">{{ $stat['low_round'] ?? '-' }}</td>
                                             <td style="text-align: center;">{{ $stat['total_par3'] > 0 ? $stat['total_par3'] : '-' }}</td>
                                             <td style="text-align: center; white-space: nowrap;">{{ $stat['season_wins'] }}-{{ $stat['season_losses'] }}-{{ $stat['season_ties'] }}</td>
@@ -1129,7 +1131,7 @@
                                         <td>Hole {{ $winner->hole_number }}</td>
                                         <td style="font-weight: 600;">
                                             @if($winner->player)
-                                                <a href="{{ route('players.show', $winner->player->id) }}" class="team-link">{{ $winner->player->name }}</a>
+                                                <a href="{{ route('players.show', $winner->player->id) }}" class="team-link"@if($winner->team_color ?? null) style="color: {{ $winner->team_color }};"@endif>{{ $winner->player->name }}</a>
                                             @else
                                                 —
                                             @endif
