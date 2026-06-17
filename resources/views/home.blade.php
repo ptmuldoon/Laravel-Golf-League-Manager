@@ -1168,6 +1168,7 @@
                             'weekMatches' => $currentWeekMatches,
                             'matchTeamNames' => $matchTeamNames,
                             'scorecardData' => $currentWeekScorecardData,
+                            'teamColors' => $weekResultsTeamColors ?? [],
                         ])
                     </div>
                 </div>

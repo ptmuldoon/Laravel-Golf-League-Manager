@@ -1764,6 +1764,16 @@ class LeagueController extends Controller
             }
         }
 
+        // Build team id -> color map (admin-picked color, else red/blue by team
+        // order within each segment).
+        $teamColorFallback = ['#dc3545', '#2563eb'];
+        $teamColorMap = [];
+        foreach ($league->teams->groupBy('league_segment_id') as $group) {
+            foreach ($group->sortBy('id')->values() as $i => $team) {
+                $teamColorMap[$team->id] = $team->color ?: ($teamColorFallback[$i] ?? null);
+            }
+        }
+
         // Prepare scorecard data for each match
         $scorecards = [];
         foreach ($matches as $match) {
@@ -1830,6 +1840,8 @@ class LeagueController extends Controller
                 'awayPlayers' => $awayPlayers,
                 'homeTeamName' => $homeTeamName,
                 'awayTeamName' => $awayTeamName,
+                'homeTeamColor' => $match->home_team_id ? ($teamColorMap[$match->home_team_id] ?? null) : null,
+                'awayTeamColor' => $match->away_team_id ? ($teamColorMap[$match->away_team_id] ?? null) : null,
                 'playerHandicaps' => $playerHandicaps,
             ];
         }

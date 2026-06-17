@@ -242,9 +242,21 @@
             $awayPlayers = $card['awayPlayers'];
             $homeTeamName = $card['homeTeamName'];
             $awayTeamName = $card['awayTeamName'];
+            $homeTeamColor = $card['homeTeamColor'] ?? null;
+            $awayTeamColor = $card['awayTeamColor'] ?? null;
             $cardHandicaps = $card['playerHandicaps'];
             $numHoles = $holeRange[1] - $holeRange[0] + 1;
             $colSpan = $numHoles + 2; // player + holes + total
+            // Background = team color; text white or dark per luminance for legibility.
+            $teamHeaderStyle = function ($color) {
+                if (!$color) return '';
+                $hex = ltrim($color, '#');
+                if (strlen($hex) === 3) { $hex = $hex[0].$hex[0].$hex[1].$hex[1].$hex[2].$hex[2]; }
+                $r = hexdec(substr($hex, 0, 2)); $g = hexdec(substr($hex, 2, 2)); $b = hexdec(substr($hex, 4, 2));
+                $lum = (0.299 * $r + 0.587 * $g + 0.114 * $b) / 255;
+                $text = $lum > 0.6 ? '#222' : '#fff';
+                return "background: {$color} !important; color: {$text} !important;";
+            };
         @endphp
         <div class="scorecard">
             <div class="scorecard-header">
@@ -315,7 +327,7 @@
                         @foreach($orderedPlayers as $idx => $mp)
                             @php
                                 $isHome = $homePlayers->contains('id', $mp->id);
-                                $teamColor = $isHome ? '#28a745' : '#dc3545';
+                                $teamColor = $isHome ? ($homeTeamColor ?: '#28a745') : ($awayTeamColor ?: '#dc3545');
                                 $ph = $cardHandicaps[$mp->id] ?? null;
                                 $hi = $ph ? $ph['hi'] : (float) $mp->handicap_index;
                                 $ch18 = $ph ? $ph['ch18'] : $mp->course_handicap;
@@ -362,7 +374,7 @@
                         {{-- Standard: grouped by team --}}
                         {{-- Away Team (top) --}}
                         <tr class="team-header-row">
-                            <td colspan="{{ $colSpan }}" style="text-align: left;">{{ $awayTeamName }}</td>
+                            <td colspan="{{ $colSpan }}" style="text-align: left; {{ $teamHeaderStyle($awayTeamColor) }}">{{ $awayTeamName }}</td>
                         </tr>
                         @foreach($awayPlayers as $mp)
                             @php
@@ -408,7 +420,7 @@
 
                         {{-- Home Team (bottom) --}}
                         <tr class="team-header-row">
-                            <td colspan="{{ $colSpan }}" style="text-align: left;">{{ $homeTeamName }}</td>
+                            <td colspan="{{ $colSpan }}" style="text-align: left; {{ $teamHeaderStyle($homeTeamColor) }}">{{ $homeTeamName }}</td>
                         </tr>
                         @foreach($homePlayers as $mp)
                             @php

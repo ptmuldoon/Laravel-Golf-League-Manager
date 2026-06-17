@@ -739,12 +739,31 @@ class HomeController extends Controller
                 ->toArray();
         }
 
-        return view('home', compact('activeLeagues', 'allActiveLeagues', 'selectedLeagueId', 'playerStandings', 'playerWeeks', 'weeklyTeamScores', 'completedWeeks', 'segmentStandings', 'segmentWeeklyScores', 'segmentCompletedWeeks', 'recentMatches', 'upcomingMatches', 'matchTeamNames', 'par3Winners', 'currentWeekMatches', 'currentWeekNumber', 'currentWeekScorecardData', 'allCompletedWeeks'));
+        $weekResultsTeamColors = $this->leagueTeamColors($activeLeagues->firstWhere('id', (int) $selectedLeagueId));
+
+        return view('home', compact('activeLeagues', 'allActiveLeagues', 'selectedLeagueId', 'playerStandings', 'playerWeeks', 'weeklyTeamScores', 'completedWeeks', 'segmentStandings', 'segmentWeeklyScores', 'segmentCompletedWeeks', 'recentMatches', 'upcomingMatches', 'matchTeamNames', 'par3Winners', 'currentWeekMatches', 'currentWeekNumber', 'currentWeekScorecardData', 'allCompletedWeeks', 'weekResultsTeamColors'));
     }
 
     /**
      * Return the week results partial HTML for AJAX navigation.
      */
+    /**
+     * Map team id -> display color for a league. Uses the admin-picked team
+     * color, else falls back to red/blue by team order within each segment.
+     */
+    private function leagueTeamColors($league): array
+    {
+        $fallback = ['#dc3545', '#2563eb'];
+        $map = [];
+        $teams = $league && $league->teams ? $league->teams : collect();
+        foreach ($teams->groupBy('league_segment_id') as $group) {
+            foreach ($group->sortBy('id')->values() as $i => $team) {
+                $map[$team->id] = $team->color ?: ($fallback[$i] ?? null);
+            }
+        }
+        return $map;
+    }
+
     public function weekResultsPartial($leagueId, $weekNumber)
     {
         $weekMatches = LeagueMatch::with([
@@ -945,7 +964,9 @@ class HomeController extends Controller
             }
         }
 
-        return view('leagues.week-results-partial', compact('weekMatches', 'matchTeamNames', 'scorecardData'));
+        $teamColors = $this->leagueTeamColors($weekMatches->first()?->league);
+
+        return view('leagues.week-results-partial', compact('weekMatches', 'matchTeamNames', 'scorecardData', 'teamColors'));
     }
 
     /**

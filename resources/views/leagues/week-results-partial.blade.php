@@ -1,6 +1,16 @@
+@php $teamColors = $teamColors ?? []; @endphp
 @if($weekMatches->isNotEmpty())
     @php
         $firstMatch = $weekMatches->first();
+        // Build a light "shade" style (tinted background + bold colored text)
+        // from a team's hex color, falling back to the default blue/pink.
+        $teamShade = function ($color, $fallback) {
+            if (!$color) return $fallback;
+            $hex = ltrim($color, '#');
+            if (strlen($hex) === 3) { $hex = $hex[0].$hex[0].$hex[1].$hex[1].$hex[2].$hex[2]; }
+            $r = hexdec(substr($hex, 0, 2)); $g = hexdec(substr($hex, 2, 2)); $b = hexdec(substr($hex, 4, 2));
+            return "background: rgba({$r}, {$g}, {$b}, 0.15); color: {$color};";
+        };
     @endphp
     <div style="color: #666; font-size: 0.9em; margin-bottom: 15px; text-align: center;">
         {{ $firstMatch->match_date->format('l, M d, Y') }} | {{ $firstMatch->golfCourse->name ?? '' }}
@@ -24,11 +34,15 @@
             $allCourseInfo = $scData ? ($scData['allCourseInfo'] ?? $courseInfo) : collect();
             $holeRange = $scData ? $scData['holeRange'] : [1, 9];
             $playerHandicaps = $scData ? $scData['playerHandicaps'] : [];
+            $homeColor = $teamColors[$match->home_team_id] ?? null;
+            $awayColor = $teamColors[$match->away_team_id] ?? null;
+            $homeShade = $teamShade($homeColor, '{{ $homeShade }}');
+            $awayShade = $teamShade($awayColor, '{{ $awayShade }}');
         @endphp
         <div class="match-card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                 <div class="match-teams" style="margin-bottom: 0;">
-                    {{ $homeTeam }} vs {{ $awayTeam }}
+                    <span @if($homeColor) style="color: {{ $homeColor }};"@endif>{{ $homeTeam }}</span> vs <span @if($awayColor) style="color: {{ $awayColor }};"@endif>{{ $awayTeam }}</span>
                 </div>
                 @if($match->tee_time)
                     <span class="tee-time-badge">{{ \Carbon\Carbon::parse($match->tee_time)->format('g:i A') }}</span>
@@ -128,22 +142,22 @@
                             @if(!$rideWithOpponent)
                                 @if($dIdx === 0)
                                     <tr class="sc-team-header">
-                                        <td colspan="12">{{ $homeTeam }}</td>
+                                        <td colspan="12"@if($homeColor) style="{{ $homeShade }}"@endif>{{ $homeTeam }}</td>
                                     </tr>
                                 @elseif($dIdx === count($homePlayerIds))
                                     @if($scData && isset($scData['holeResults']) && $scData['holeResults']['type'] === 'team')
                                         @php $homeRes = $scData['holeResults']['homeResults']; @endphp
                                         <tr class="sc-results-row">
-                                            <td style="text-align: left; font-weight: 700; font-size: 0.75em; background: #e3f2fd; color: #1565c0;">{{ $homeTeam }}</td>
+                                            <td style="text-align: left; font-weight: 700; font-size: 0.75em; {{ $homeShade }}">{{ $homeTeam }}</td>
                                             <td style="background: #f0f0f0;">-</td>
                                             @for($hole = $holeRange[0]; $hole <= $holeRange[1]; $hole++)
                                                 <td class="{{ $homeRes['holes'][$hole]['class'] ?? '' }}">{{ $homeRes['holes'][$hole]['display'] ?? '-' }}</td>
                                             @endfor
-                                            <td style="font-weight: 700; background: #e3f2fd; color: #1565c0;">{{ $homeRes['total'] == (int)$homeRes['total'] ? (int)$homeRes['total'] : number_format($homeRes['total'], 1) }}</td>
+                                            <td style="font-weight: 700; {{ $homeShade }}">{{ $homeRes['total'] == (int)$homeRes['total'] ? (int)$homeRes['total'] : number_format($homeRes['total'], 1) }}</td>
                                         </tr>
                                     @endif
                                     <tr class="sc-team-header">
-                                        <td colspan="12">{{ $awayTeam }}</td>
+                                        <td colspan="12"@if($awayColor) style="{{ $awayShade }}"@endif>{{ $awayTeam }}</td>
                                     </tr>
                                 @endif
                             @else
@@ -160,9 +174,9 @@
                                 <td></td>
                             </tr>
                             <tr>
-                                <td class="sc-player-name" {!! $rideWithOpponent ? 'style="color: ' . ($isHome ? '#28a745' : '#dc3545') . ';"' : '' !!}>
+                                <td class="sc-player-name" {!! $rideWithOpponent ? 'style="color: ' . ($isHome ? ($homeColor ?: '#28a745') : ($awayColor ?: '#dc3545')) . ';"' : '' !!}>
                                     @if($matchPlayer->player)
-                                        <a href="{{ route('players.show', $matchPlayer->player->id) }}" class="team-link" {!! $rideWithOpponent ? 'style="color: ' . ($isHome ? '#28a745' : '#dc3545') . ';"' : '' !!}>{{ $matchPlayer->display_name }}</a>
+                                        <a href="{{ route('players.show', $matchPlayer->player->id) }}" class="team-link" {!! $rideWithOpponent ? 'style="color: ' . ($isHome ? ($homeColor ?: '#28a745') : ($awayColor ?: '#dc3545')) . ';"' : '' !!}>{{ $matchPlayer->display_name }}</a>
                                     @else
                                         {{ $matchPlayer->display_name }}
                                     @endif
@@ -194,22 +208,22 @@
                             @if($rideWithOpponent)
                                 @php $homeRes = $scData['holeResults']['homeResults']; @endphp
                                 <tr class="sc-results-row">
-                                    <td style="text-align: left; font-weight: 700; font-size: 0.75em; background: #e3f2fd; color: #1565c0;">{{ $homeTeam }}</td>
+                                    <td style="text-align: left; font-weight: 700; font-size: 0.75em; {{ $homeShade }}">{{ $homeTeam }}</td>
                                     <td style="background: #f0f0f0;">-</td>
                                     @for($hole = $holeRange[0]; $hole <= $holeRange[1]; $hole++)
                                         <td class="{{ $homeRes['holes'][$hole]['class'] ?? '' }}">{{ $homeRes['holes'][$hole]['display'] ?? '-' }}</td>
                                     @endfor
-                                    <td style="font-weight: 700; background: #e3f2fd; color: #1565c0;">{{ $homeRes['total'] == (int)$homeRes['total'] ? (int)$homeRes['total'] : number_format($homeRes['total'], 1) }}</td>
+                                    <td style="font-weight: 700; {{ $homeShade }}">{{ $homeRes['total'] == (int)$homeRes['total'] ? (int)$homeRes['total'] : number_format($homeRes['total'], 1) }}</td>
                                 </tr>
                             @endif
                             @php $awayRes = $scData['holeResults']['awayResults']; @endphp
                             <tr class="sc-results-row">
-                                <td style="text-align: left; font-weight: 700; font-size: 0.75em; background: #fce4ec; color: #c62828;">{{ $awayTeam }}</td>
+                                <td style="text-align: left; font-weight: 700; font-size: 0.75em; {{ $awayShade }}">{{ $awayTeam }}</td>
                                 <td style="background: #f0f0f0;">-</td>
                                 @for($hole = $holeRange[0]; $hole <= $holeRange[1]; $hole++)
                                     <td class="{{ $awayRes['holes'][$hole]['class'] ?? '' }}">{{ $awayRes['holes'][$hole]['display'] ?? '-' }}</td>
                                 @endfor
-                                <td style="font-weight: 700; background: #fce4ec; color: #c62828;">{{ $awayRes['total'] == (int)$awayRes['total'] ? (int)$awayRes['total'] : number_format($awayRes['total'], 1) }}</td>
+                                <td style="font-weight: 700; {{ $awayShade }}">{{ $awayRes['total'] == (int)$awayRes['total'] ? (int)$awayRes['total'] : number_format($awayRes['total'], 1) }}</td>
                             </tr>
                         @endif
                     </tbody>
