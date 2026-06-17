@@ -647,6 +647,38 @@ class LeagueController extends Controller
     }
 
     /**
+     * Balance tee-time slots across a range of weeks so every player gets an
+     * even spread of early/late tee times. Scopes to a segment's weeks when a
+     * segment_id is supplied, otherwise balances every scheduled week.
+     */
+    public function balanceTeeTimes(Request $request, $leagueId)
+    {
+        $validated = $request->validate([
+            'segment_id' => 'nullable|integer|exists:league_segments,id',
+        ]);
+
+        $league = League::findOrFail($leagueId);
+
+        if (!empty($validated['segment_id'])) {
+            $segment = LeagueSegment::where('league_id', $league->id)
+                ->findOrFail($validated['segment_id']);
+            $startWeek = $segment->start_week;
+            $endWeek = $segment->end_week;
+            $scope = $segment->name;
+        } else {
+            $startWeek = (int) $league->matches()->min('week_number');
+            $endWeek = (int) $league->matches()->max('week_number');
+            $scope = "weeks {$startWeek}\u{2013}{$endWeek}";
+        }
+
+        $scheduler = new \App\Services\LeagueScheduler(app(\App\Services\MatchPlayCalculator::class));
+        $summary = $scheduler->balanceTeeTimes($league, $startWeek, $endWeek);
+
+        return redirect()->route('admin.leagues.scheduleOverview', $leagueId)
+            ->with('success', "Tee times balanced for {$scope}: {$summary['matches_moved']} of {$summary['total_matches']} matches re-slotted across {$summary['weeks_processed']} weeks.");
+    }
+
+    /**
      * Delete all matches in a week (only if no scores have been posted)
      */
     public function deleteWeek($leagueId, $weekNumber)
@@ -2386,12 +2418,22 @@ class LeagueController extends Controller
     /**
      * Show how often each player has been scheduled at each tee time slot.
      */
-    public function teeTimeDistribution($leagueId)
+    public function teeTimeDistribution(Request $request, $leagueId)
     {
-        $league = League::with(['players'])->findOrFail($leagueId);
+        $league = League::with(['players', 'segments'])->findOrFail($leagueId);
 
-        $matchPlayers = MatchPlayer::whereHas('match', function ($q) use ($leagueId) {
+        // Optional season (segment) filter. Validate it belongs to this league.
+        $segments = $league->segments->sortBy('start_week')->values();
+        $selectedSegment = null;
+        if ($request->filled('segment_id')) {
+            $selectedSegment = $segments->firstWhere('id', (int) $request->query('segment_id'));
+        }
+
+        $matchPlayers = MatchPlayer::whereHas('match', function ($q) use ($leagueId, $selectedSegment) {
                 $q->where('league_id', $leagueId)->whereNotNull('tee_time');
+                if ($selectedSegment) {
+                    $q->whereBetween('week_number', [$selectedSegment->start_week, $selectedSegment->end_week]);
+                }
             })
             ->with(['match:id,league_id,tee_time,week_number,match_date,status', 'player'])
             ->get();
@@ -2427,7 +2469,7 @@ class LeagueController extends Controller
           ->sortBy(fn($r) => strtolower($r['player']->name))
           ->values();
 
-        return view('leagues.tee-time-distribution', compact('league', 'teeTimes', 'rows'));
+        return view('leagues.tee-time-distribution', compact('league', 'teeTimes', 'rows', 'segments', 'selectedSegment'));
     }
 
     /**

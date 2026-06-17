@@ -44,6 +44,14 @@
         .total-col { font-weight: 700; color: var(--primary-color); border-left: 2px solid #d0d5e0; }
         .zero { color: #ccc; }
         .empty-state { text-align: center; padding: 40px; color: #888; font-size: 1.1em; }
+        .season-toggle { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+        .season-toggle a {
+            text-decoration: none; padding: 8px 16px; border-radius: 20px;
+            font-size: 0.9em; font-weight: 600; border: 2px solid var(--primary-color);
+            color: var(--primary-color); background: white; transition: all 0.2s ease;
+        }
+        .season-toggle a:hover { background: var(--primary-light); }
+        .season-toggle a.active { background: var(--primary-color); color: white; }
         @media (max-width: 768px) {
             body { padding: 10px; }
             .content-section { padding: 16px; }
@@ -60,6 +68,15 @@
         <div class="content-section">
             <h2 class="section-title">{{ $league->name }} &mdash; Tee Time Distribution</h2>
             <div class="subtitle">Number of times each player has been scheduled at each tee time slot. Substitute appearances count toward the rostered player.</div>
+
+            @if($segments->isNotEmpty())
+                <div class="season-toggle">
+                    <a href="{{ route('admin.leagues.teeTimeDistribution', $league->id) }}" class="{{ $selectedSegment ? '' : 'active' }}">All Seasons</a>
+                    @foreach($segments as $segment)
+                        <a href="{{ route('admin.leagues.teeTimeDistribution', ['league_id' => $league->id, 'segment_id' => $segment->id]) }}" class="{{ $selectedSegment && $selectedSegment->id === $segment->id ? 'active' : '' }}">{{ $segment->name }}</a>
+                    @endforeach
+                </div>
+            @endif
 
             @if($teeTimes->isEmpty() || $rows->isEmpty())
                 <div class="empty-state">No tee times have been assigned to matches in this league yet.</div>

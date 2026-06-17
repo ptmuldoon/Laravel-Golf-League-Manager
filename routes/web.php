@@ -105,6 +105,7 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
     Route::put('/leagues/{league_id}/week/{week_number}/settings', [LeagueController::class, 'updateWeekSettings'])->name('leagues.updateWeekSettings');
     Route::post('/leagues/{league_id}/week/{week_number}/reorder', [LeagueController::class, 'reorderWeekMatches'])->name('leagues.reorderWeekMatches');
     Route::post('/leagues/{league_id}/reorder-weeks', [LeagueController::class, 'reorderWeeks'])->name('leagues.reorderWeeks');
+    Route::post('/leagues/{league_id}/balance-tee-times', [LeagueController::class, 'balanceTeeTimes'])->name('leagues.balanceTeeTimes');
     Route::delete('/leagues/{league_id}/week/{week_number}', [LeagueController::class, 'deleteWeek'])->name('leagues.deleteWeek');
     Route::get('/leagues/{league_id}/week/{week_number}/scorecards', [LeagueController::class, 'printScorecards'])->name('leagues.printScorecards');
     Route::post('/leagues/{league_id}/schedule/add-weeks', [LeagueController::class, 'addWeeks'])->name('leagues.addWeeks');

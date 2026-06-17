@@ -445,6 +445,165 @@ class LeagueScheduler
     }
 
     /**
+     * Re-assign tee times within each week of a week range so that, across the
+     * whole range, every player gets an even spread of early/late tee-time
+     * slots. Pairings, handicaps and scores are untouched — only which foursome
+     * sits in which slot changes (the same thing a manual drag-reorder does).
+     *
+     * Returns a small summary array describing what changed.
+     */
+    public function balanceTeeTimes(League $league, int $startWeek, int $endWeek): array
+    {
+        $matches = $league->matches()
+            ->whereBetween('week_number', [$startWeek, $endWeek])
+            ->whereNotNull('tee_time')
+            ->with('matchPlayers:id,match_id,player_id')
+            ->orderBy('week_number')
+            ->orderBy('tee_time')
+            ->get();
+
+        // Running count of how many times each player has landed in each slot
+        // index so far (slot 0 = earliest tee time of the week).
+        $playerSlotCounts = [];
+        $weeksChanged = 0;
+        $matchesMoved = 0;
+
+        DB::transaction(function () use ($matches, &$playerSlotCounts, &$weeksChanged, &$matchesMoved) {
+            foreach ($matches->groupBy('week_number') as $weekMatches) {
+                $weekMatches = $weekMatches->values();
+
+                // The pool of slots for this week is the existing tee times,
+                // sorted earliest-first (duplicates preserved). Slot index N
+                // maps onto the Nth entry of this list.
+                $slots = $weekMatches->pluck('tee_time')->sort()->values()->all();
+
+                // Each match carries the set of rostered player IDs to balance.
+                $matchPlayerIds = $weekMatches->map(
+                    fn ($m) => $m->matchPlayers->pluck('player_id')->filter()->all()
+                )->all();
+
+                $assignment = $this->bestSlotAssignment($matchPlayerIds, $playerSlotCounts);
+
+                foreach ($weekMatches as $i => $match) {
+                    $slotIndex = $assignment[$i];
+                    $newTeeTime = $slots[$slotIndex];
+
+                    if ((string) $match->tee_time !== (string) $newTeeTime) {
+                        $match->update(['tee_time' => $newTeeTime]);
+                        $matchesMoved++;
+                    }
+
+                    // Record the slot each player ended up in for future weeks.
+                    foreach ($matchPlayerIds[$i] as $pid) {
+                        $playerSlotCounts[$pid][$slotIndex] = ($playerSlotCounts[$pid][$slotIndex] ?? 0) + 1;
+                    }
+                }
+
+                $weeksChanged++;
+            }
+        });
+
+        return [
+            'weeks_processed' => $weeksChanged,
+            'matches_moved' => $matchesMoved,
+            'total_matches' => $matches->count(),
+        ];
+    }
+
+    /**
+     * Choose which slot index each match should take this week so the season's
+     * per-player slot usage stays as even as possible.
+     *
+     * Cost of putting a match in slot S = the sum, over that match's players,
+     * of how many times each has already been in slot S. Minimising the total
+     * cost spreads every player across the available slots. Solved optimally by
+     * brute force for normal week sizes, with a greedy fallback for very large
+     * weeks.
+     *
+     * @param  array  $matchPlayerIds  match index => array of player IDs
+     * @param  array  $playerSlotCounts  player ID => [slotIndex => count]
+     * @return array  match index => assigned slot index
+     */
+    protected function bestSlotAssignment(array $matchPlayerIds, array $playerSlotCounts): array
+    {
+        $n = count($matchPlayerIds);
+        if ($n === 0) {
+            return [];
+        }
+
+        // Pre-compute cost[matchIndex][slotIndex].
+        $cost = [];
+        for ($m = 0; $m < $n; $m++) {
+            for ($s = 0; $s < $n; $s++) {
+                $c = 0;
+                foreach ($matchPlayerIds[$m] as $pid) {
+                    $c += $playerSlotCounts[$pid][$s] ?? 0;
+                }
+                $cost[$m][$s] = $c;
+            }
+        }
+
+        // Optimal for normal week sizes (<= 8 foursomes => <= 40320 perms).
+        if ($n <= 8) {
+            $best = ['cost' => PHP_INT_MAX, 'perm' => range(0, $n - 1)];
+            $this->permuteSlots(range(0, $n - 1), 0, $cost, $best);
+            return $best['perm'];
+        }
+
+        // Greedy fallback: assign the most "overdue" matches first. Process
+        // matches by descending best-available-cost spread, picking each one's
+        // cheapest remaining slot.
+        $assignment = array_fill(0, $n, null);
+        $usedSlots = [];
+        $order = range(0, $n - 1);
+        usort($order, function ($a, $b) use ($cost, $n) {
+            return min($cost[$b]) <=> min($cost[$a]);
+        });
+        foreach ($order as $m) {
+            $bestSlot = null;
+            $bestCost = PHP_INT_MAX;
+            for ($s = 0; $s < $n; $s++) {
+                if (isset($usedSlots[$s])) continue;
+                if ($cost[$m][$s] < $bestCost) {
+                    $bestCost = $cost[$m][$s];
+                    $bestSlot = $s;
+                }
+            }
+            $assignment[$m] = $bestSlot;
+            $usedSlots[$bestSlot] = true;
+        }
+
+        return $assignment;
+    }
+
+    /**
+     * Recursively try every match->slot permutation, keeping the cheapest.
+     */
+    protected function permuteSlots(array $slots, int $depth, array $cost, array &$best, int $running = 0)
+    {
+        $n = count($slots);
+
+        // Prune branches that already cost more than the best full assignment.
+        if ($running >= $best['cost']) {
+            return;
+        }
+
+        if ($depth === $n) {
+            $best['cost'] = $running;
+            $best['perm'] = $slots;
+            return;
+        }
+
+        for ($i = $depth; $i < $n; $i++) {
+            // Place slots[$i] at position $depth (match index $depth).
+            $swapped = $slots;
+            [$swapped[$depth], $swapped[$i]] = [$swapped[$i], $swapped[$depth]];
+            $added = $cost[$depth][$swapped[$depth]];
+            $this->permuteSlots($swapped, $depth + 1, $cost, $best, $running + $added);
+        }
+    }
+
+    /**
      * Save the generated schedule to the database
      */
     public function saveSchedule(League $league, array $scheduleData, \DateTime $startDate, string $holes = 'front_9', string $scoringType = 'best_ball_match_play', string $startTeeTime = '16:40', int $teeTimeInterval = 10, int $weekOffset = 0, string $scoreMode = 'net', ?LeagueSegment $segment = null)

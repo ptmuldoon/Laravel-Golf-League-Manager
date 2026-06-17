@@ -50,6 +50,20 @@
                     <a href="{{ route('admin.leagues.autoSchedule', $league->id) }}" style="padding: 12px 24px; border-radius: 8px; font-size: 1em; font-weight: 600; text-decoration: none; background: var(--primary-color); color: white; display: inline-block;">
                         🤖 Regenerate Schedule
                     </a>
+                    @unless($matchesByWeek->isEmpty())
+                    <form action="{{ route('admin.leagues.balanceTeeTimes', $league->id) }}" method="POST" style="display: flex; gap: 8px; align-items: center;" onsubmit="return confirm('Re-slot tee times to even out each player\'s early/late spread? Pairings and scores are not affected.');">
+                        @csrf
+                        <select name="segment_id" style="padding: 10px 8px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1em;">
+                            <option value="">All weeks</option>
+                            @foreach($league->segments as $segment)
+                                <option value="{{ $segment->id }}">{{ $segment->name }} (wks {{ $segment->start_week }}–{{ $segment->end_week }})</option>
+                            @endforeach
+                        </select>
+                        <button type="submit" style="padding: 12px 24px; border-radius: 8px; font-size: 1em; font-weight: 600; border: none; cursor: pointer; background: #17a2b8; color: white; white-space: nowrap;">
+                            ⚖️ Balance Tee Times
+                        </button>
+                    </form>
+                    @endunless
                 </div>
             </div>
 
