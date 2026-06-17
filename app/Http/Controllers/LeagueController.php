@@ -2355,6 +2355,13 @@ class LeagueController extends Controller
         return view('leagues.hole-stats', array_merge(['league' => $league], $data));
     }
 
+    public function partnerContribution($leagueId)
+    {
+        $league = League::findOrFail($leagueId);
+        $data = (new \App\Services\PartnerContributionAnalyzer())->analyze($league);
+        return view('leagues.partner-contribution', array_merge(['league' => $league], $data));
+    }
+
     /**
      * Update the per-league flash message and its on/off toggle.
      */
