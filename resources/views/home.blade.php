@@ -741,6 +741,17 @@
                     // Same fallback (red/blue) applies within each season.
                     $playerSegTabs = $league->segments->sortBy('display_order')->values();
                     $firstSegmentId = $playerSegTabs->isNotEmpty() ? $playerSegTabs->first()->id : null;
+
+                    // Default the season toggle to the segment containing the
+                    // current (latest completed) week, falling back to the first.
+                    $currentWeekForTabs = isset($completedWeeks[$league->id]) && $completedWeeks[$league->id]->isNotEmpty()
+                        ? $completedWeeks[$league->id]->last()
+                        : null;
+                    $currentSegmentId = $firstSegmentId;
+                    if ($currentWeekForTabs !== null) {
+                        $matchedSeg = $playerSegTabs->first(fn($s) => $currentWeekForTabs >= $s->start_week && $currentWeekForTabs <= $s->end_week);
+                        if ($matchedSeg) { $currentSegmentId = $matchedSeg->id; }
+                    }
                     $playerSeasonColors = []; // [playerId][segmentId] = color
                     foreach ($playerSegTabs as $pscSeg) {
                         foreach ($pscSeg->teams->sortBy('id')->values() as $sti => $stTeam) {
@@ -791,14 +802,15 @@
                                 {{-- Segment tabs --}}
                                 <div style="display: flex; gap: 5px; margin-bottom: 15px; flex-wrap: wrap;">
                                     @foreach($league->segments as $si => $segment)
-                                        <button type="button" onclick="showHomeSegmentTab({{ $league->id }}, {{ $segment->id }})" id="home-seg-tab-{{ $league->id }}-{{ $segment->id }}" style="padding: 6px 14px; border: 2px solid {{ $si === 0 ? 'var(--primary-color)' : '#e0e0e0' }}; border-radius: 6px; font-size: 0.85em; font-weight: 600; cursor: pointer; background: {{ $si === 0 ? 'var(--primary-color)' : 'white' }}; color: {{ $si === 0 ? 'white' : 'var(--primary-color)' }};">
+                                        @php $isDefaultSeg = $segment->id === $currentSegmentId; @endphp
+                                        <button type="button" onclick="showHomeSegmentTab({{ $league->id }}, {{ $segment->id }})" id="home-seg-tab-{{ $league->id }}-{{ $segment->id }}" style="padding: 6px 14px; border: 2px solid {{ $isDefaultSeg ? 'var(--primary-color)' : '#e0e0e0' }}; border-radius: 6px; font-size: 0.85em; font-weight: 600; cursor: pointer; background: {{ $isDefaultSeg ? 'var(--primary-color)' : 'white' }}; color: {{ $isDefaultSeg ? 'white' : 'var(--primary-color)' }};">
                                             {{ $segment->name }}
                                         </button>
                                     @endforeach
                                 </div>
 
                                 @foreach($league->segments as $si => $segment)
-                                    <div id="home-seg-content-{{ $league->id }}-{{ $segment->id }}" style="{{ $si !== 0 ? 'display: none;' : '' }}">
+                                    <div id="home-seg-content-{{ $league->id }}-{{ $segment->id }}" style="{{ $segment->id !== $currentSegmentId ? 'display: none;' : '' }}">
                                         @php $segTeams = $segmentStandings[$league->id][$segment->id] ?? collect(); @endphp
                                         @if($segTeams->isNotEmpty())
                                             <div class="scrollable-table">
@@ -1051,8 +1063,8 @@
                                             <td style="white-space: nowrap;">
                                                 @php
                                                     $pSeasonColors = $playerSeasonColors[$stat['player']->id] ?? [];
-                                                    $pInitColor = $firstSegmentId
-                                                        ? ($pSeasonColors[$firstSegmentId] ?? null)
+                                                    $pInitColor = $currentSegmentId
+                                                        ? ($pSeasonColors[$currentSegmentId] ?? null)
                                                         : ($playerDefaultColor[$stat['player']->id] ?? null);
                                                 @endphp
                                                 <a href="{{ route('players.show', $stat['player']->id) }}" class="team-link player-name-link" data-season-colors='@json($pSeasonColors)'@if($pInitColor) style="color: {{ $pInitColor }};"@endif>{{ $stat['player']->name }}</a>
