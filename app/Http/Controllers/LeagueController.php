@@ -2501,6 +2501,57 @@ class LeagueController extends Controller
     }
 
     /**
+     * Show how many times each player has been grouped (in the same match)
+     * with every other player — a player x player co-occurrence grid.
+     */
+    public function partnerDistribution(Request $request, $leagueId)
+    {
+        $league = League::with(['players', 'segments'])->findOrFail($leagueId);
+
+        // Optional season (segment) filter.
+        $segments = $league->segments->sortBy('start_week')->values();
+        $selectedSegment = null;
+        if ($request->filled('segment_id')) {
+            $selectedSegment = $segments->firstWhere('id', (int) $request->query('segment_id'));
+        }
+
+        $matchPlayers = MatchPlayer::whereHas('match', function ($q) use ($leagueId, $selectedSegment) {
+                $q->where('league_id', $leagueId);
+                if ($selectedSegment) {
+                    $q->whereBetween('week_number', [$selectedSegment->start_week, $selectedSegment->end_week]);
+                }
+            })
+            ->get(['id', 'match_id', 'player_id']);
+
+        // Count co-occurrences: for every pair of players sharing a match,
+        // increment both directions of the matrix.
+        $matrix = []; // [playerId][otherPlayerId] => count
+        foreach ($matchPlayers->groupBy('match_id') as $group) {
+            $ids = $group->pluck('player_id')->filter()->unique()->values()->all();
+            foreach ($ids as $a) {
+                foreach ($ids as $b) {
+                    if ($a === $b) continue;
+                    $matrix[$a][$b] = ($matrix[$a][$b] ?? 0) + 1;
+                }
+            }
+        }
+
+        // Players who actually appear in the scoped matches, sorted by name.
+        $playerIdsInPlay = $matchPlayers->pluck('player_id')->filter()->unique();
+        $players = $league->players
+            ->whereIn('id', $playerIdsInPlay)
+            ->sortBy(fn($p) => strtolower($p->name))
+            ->values();
+
+        $rowTotals = [];
+        foreach ($players as $p) {
+            $rowTotals[$p->id] = array_sum($matrix[$p->id] ?? []);
+        }
+
+        return view('leagues.partner-distribution', compact('league', 'players', 'matrix', 'rowTotals', 'segments', 'selectedSegment'));
+    }
+
+    /**
      * Return hole stats as an HTML partial for AJAX loading
      */
     public function holeStatsPartial($leagueId)
