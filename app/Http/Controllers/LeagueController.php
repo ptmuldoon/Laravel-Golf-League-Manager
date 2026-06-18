@@ -2793,7 +2793,45 @@ class LeagueController extends Controller
             }
         }
 
-        return view('leagues.schedule-partial', compact('league', 'matchesByWeek', 'totalMatches', 'completedMatches', 'weekSegmentMap'));
+        // Build a per-player view of the schedule (every week's tee time and
+        // group for each player) to back the "By Player" toggle.
+        $nameOf = function ($mp) {
+            $player = $mp->substitute_player_id ? $mp->substitutePlayer : $mp->player;
+            return $player ? $player->name : ($mp->substitute_name ?? '—');
+        };
+        $playerNames = [];
+        $playerSchedules = [];
+        foreach ($league->matches as $match) {
+            $homeSide = $match->matchPlayers->where('position_in_pairing', '<=', 2);
+            $awaySide = $match->matchPlayers->where('position_in_pairing', '>', 2);
+            foreach ($match->matchPlayers as $mp) {
+                if (!$mp->player_id || !$mp->player) continue;
+                $isHome = $mp->position_in_pairing <= 2;
+                $partners = ($isHome ? $homeSide : $awaySide)->where('id', '!=', $mp->id);
+                $opponents = $isHome ? $awaySide : $homeSide;
+                $playerNames[$mp->player_id] = $mp->player->name;
+                $playerSchedules[$mp->player_id][] = [
+                    'week' => $match->week_number,
+                    'date' => $match->match_date,
+                    'tee_time' => $match->tee_time,
+                    'holes' => $match->holes,
+                    'scoring_type' => $match->scoring_type,
+                    'status' => $match->status,
+                    'partners' => $partners->map($nameOf)->filter()->values()->all(),
+                    'opponents' => $opponents->map($nameOf)->filter()->values()->all(),
+                ];
+            }
+        }
+        foreach ($playerSchedules as &$rows) {
+            usort($rows, fn($a, $b) => $a['week'] <=> $b['week']);
+        }
+        unset($rows);
+        $schedulePlayers = collect($playerNames)
+            ->map(fn($name, $id) => ['id' => $id, 'name' => $name])
+            ->sortBy(fn($p) => strtolower($p['name']))
+            ->values();
+
+        return view('leagues.schedule-partial', compact('league', 'matchesByWeek', 'totalMatches', 'completedMatches', 'weekSegmentMap', 'schedulePlayers', 'playerSchedules'));
     }
 
     private function computeHoleStats(League $league): array

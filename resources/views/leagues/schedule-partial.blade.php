@@ -2,6 +2,16 @@
     @if($matchesByWeek->isEmpty())
         <div style="text-align: center; padding: 40px; color: #888;">No matches scheduled yet.</div>
     @else
+        {{-- View mode toggle --}}
+        <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
+            <button type="button" id="sched-mode-week-{{ $league->id }}" onclick="setScheduleMode('week', {{ $league->id }})"
+                style="padding: 8px 18px; border: 2px solid var(--primary-color); border-radius: 20px; font-size: 0.9em; font-weight: 600; cursor: pointer; background: var(--primary-color); color: white;">By Week</button>
+            <button type="button" id="sched-mode-player-{{ $league->id }}" onclick="setScheduleMode('player', {{ $league->id }})"
+                style="padding: 8px 18px; border: 2px solid var(--primary-color); border-radius: 20px; font-size: 0.9em; font-weight: 600; cursor: pointer; background: white; color: var(--primary-color);">By Player</button>
+        </div>
+
+        {{-- ===================== BY WEEK ===================== --}}
+        <div id="schedule-by-week-{{ $league->id }}">
         <div style="background: #e8f4f8; padding: 12px 15px; border-radius: 8px; margin-bottom: 20px; color: #0c5460; font-size: 0.9em;">
             <strong>Schedule Summary:</strong>
             Total Weeks: <strong>{{ $matchesByWeek->count() }}</strong> |
@@ -111,5 +121,53 @@
                 </div>
             </div>
         @endforeach
+        </div>{{-- end by-week --}}
+
+        {{-- ===================== BY PLAYER ===================== --}}
+        <div id="schedule-by-player-{{ $league->id }}" style="display: none;">
+            <div style="margin-bottom: 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <label for="sched-player-select-{{ $league->id }}" style="font-weight: 600; color: var(--primary-color);">Player:</label>
+                <select id="sched-player-select-{{ $league->id }}" onchange="showPlayerSchedule({{ $league->id }})"
+                    style="padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.95em;">
+                    @foreach($schedulePlayers as $sp)
+                        <option value="{{ $sp['id'] }}">{{ $sp['name'] }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            @foreach($schedulePlayers as $spi => $sp)
+                <div class="sched-player-block-{{ $league->id }}" id="sched-player-{{ $league->id }}-{{ $sp['id'] }}" style="{{ $spi === 0 ? '' : 'display: none;' }}">
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+                            <thead>
+                                <tr style="background: var(--primary-light); color: var(--primary-color);">
+                                    <th style="padding: 8px 10px; text-align: left;">Week</th>
+                                    <th style="padding: 8px 10px; text-align: left;">Date</th>
+                                    <th style="padding: 8px 10px; text-align: left;">Tee Time</th>
+                                    <th style="padding: 8px 10px; text-align: left;">Format</th>
+                                    <th style="padding: 8px 10px; text-align: left;">Partner</th>
+                                    <th style="padding: 8px 10px; text-align: left;">Opponents</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($playerSchedules[$sp['id']] ?? [] as $row)
+                                    <tr style="border-bottom: 1px solid #f0f0f0;{{ $row['status'] === 'completed' ? ' background: #f0fdf4;' : '' }}">
+                                        <td style="padding: 8px 10px; font-weight: 700; color: var(--primary-color);">Week {{ $row['week'] }}</td>
+                                        <td style="padding: 8px 10px; color: #666;">{{ $row['date'] ? \Carbon\Carbon::parse($row['date'])->format('M d, Y') : '—' }}</td>
+                                        <td style="padding: 8px 10px; font-weight: 600;">{{ $row['tee_time'] ? \Carbon\Carbon::parse($row['tee_time'])->format('g:i A') : 'TBD' }}</td>
+                                        <td style="padding: 8px 10px; color: #555; font-size: 0.9em;">
+                                            {{ \App\Models\ScoringSetting::scoringTypes()[$row['scoring_type']] ?? ucfirst(str_replace('_', ' ', $row['scoring_type'])) }}
+                                            <span style="color: #999; font-size: 0.85em;">&bull; {{ $row['holes'] === 'back_9' ? 'Back 9' : 'Front 9' }}</span>
+                                        </td>
+                                        <td style="padding: 8px 10px; color: #28a745; font-weight: 600;">{{ count($row['partners']) ? implode(' & ', $row['partners']) : '—' }}</td>
+                                        <td style="padding: 8px 10px; color: #dc3545; font-weight: 600;">{{ count($row['opponents']) ? implode(', ', $row['opponents']) : '—' }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            @endforeach
+        </div>{{-- end by-player --}}
     @endif
 </div>

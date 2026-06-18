@@ -1314,6 +1314,35 @@
             }
         }
 
+        function setScheduleMode(mode, leagueId) {
+            var weekView = document.getElementById('schedule-by-week-' + leagueId);
+            var playerView = document.getElementById('schedule-by-player-' + leagueId);
+            var weekBtn = document.getElementById('sched-mode-week-' + leagueId);
+            var playerBtn = document.getElementById('sched-mode-player-' + leagueId);
+            var byPlayer = mode === 'player';
+            if (weekView) weekView.style.display = byPlayer ? 'none' : '';
+            if (playerView) playerView.style.display = byPlayer ? '' : 'none';
+            [weekBtn, playerBtn].forEach(function (b) {
+                if (!b) return;
+                b.style.background = 'white';
+                b.style.color = 'var(--primary-color)';
+            });
+            var active = byPlayer ? playerBtn : weekBtn;
+            if (active) { active.style.background = 'var(--primary-color)'; active.style.color = 'white'; }
+            if (byPlayer) showPlayerSchedule(leagueId);
+        }
+
+        function showPlayerSchedule(leagueId) {
+            var select = document.getElementById('sched-player-select-' + leagueId);
+            if (!select) return;
+            var playerId = select.value;
+            document.querySelectorAll('.sched-player-block-' + leagueId).forEach(function (block) {
+                block.style.display = 'none';
+            });
+            var target = document.getElementById('sched-player-' + leagueId + '-' + playerId);
+            if (target) target.style.display = '';
+        }
+
         function showHoleStatsMode(mode, leagueId) {
             var grossTable = document.getElementById('hs-table-gross-' + leagueId);
             var netTable = document.getElementById('hs-table-net-' + leagueId);
