@@ -47,6 +47,9 @@
         .diag { background: #eceff4; color: #bbb; }
         .zero { color: #ccc; }
         .rowmax { background: var(--primary-color); color: white; font-weight: 700; border-radius: 4px; }
+        /* Keep the highlighted partner and diagonal cells fixed on row hover */
+        tr:hover td.rowmax { background: var(--primary-color); color: white; }
+        tr:hover td.diag { background: #eceff4; color: #bbb; }
         .total-col { font-weight: 700; color: var(--primary-color); border-left: 2px solid #d0d5e0; }
         .empty-state { text-align: center; padding: 40px; color: #888; font-size: 1.1em; }
         .season-toggle { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
