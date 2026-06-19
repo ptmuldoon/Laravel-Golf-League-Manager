@@ -85,6 +85,11 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
     Route::post('/courses/{course_id}/teeboxes', [GolfCourseController::class, 'addTeebox'])->name('courses.teeboxes.add');
     Route::put('/courses/{course_id}/teeboxes/{teebox_name}', [GolfCourseController::class, 'updateTeebox'])->name('courses.teeboxes.update');
     Route::delete('/courses/{course_id}/teeboxes/{teebox_name}', [GolfCourseController::class, 'deleteTeebox'])->name('courses.teeboxes.delete');
+
+    // Ad-hoc scorecard generator
+    Route::get('/scorecard-generator', [\App\Http\Controllers\ScorecardGeneratorController::class, 'form'])->name('scorecardGenerator');
+    Route::get('/scorecard-generator/print', [\App\Http\Controllers\ScorecardGeneratorController::class, 'print'])->name('scorecardGenerator.print');
+
     // League routes
     Route::get('/leagues/list', [LeagueController::class, 'index'])->name('leagues.index');
     Route::get('/leagues/create', [LeagueController::class, 'create'])->name('leagues.create');
