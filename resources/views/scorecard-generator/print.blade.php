@@ -86,7 +86,7 @@
 
     <div class="no-print">
         <button class="btn-print" onclick="window.print()">🖨️ Print</button>
-        <a class="btn-back" href="{{ route('admin.scorecardGenerator') }}">← New Scorecard</a>
+        <a class="btn-back" href="{{ route('scorecardGenerator') }}">← New Scorecard</a>
     </div>
 
     <div class="scorecard">

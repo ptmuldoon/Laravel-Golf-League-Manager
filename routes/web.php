@@ -86,10 +86,6 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
     Route::put('/courses/{course_id}/teeboxes/{teebox_name}', [GolfCourseController::class, 'updateTeebox'])->name('courses.teeboxes.update');
     Route::delete('/courses/{course_id}/teeboxes/{teebox_name}', [GolfCourseController::class, 'deleteTeebox'])->name('courses.teeboxes.delete');
 
-    // Ad-hoc scorecard generator
-    Route::get('/scorecard-generator', [\App\Http\Controllers\ScorecardGeneratorController::class, 'form'])->name('scorecardGenerator');
-    Route::get('/scorecard-generator/print', [\App\Http\Controllers\ScorecardGeneratorController::class, 'print'])->name('scorecardGenerator.print');
-
     // League routes
     Route::get('/leagues/list', [LeagueController::class, 'index'])->name('leagues.index');
     Route::get('/leagues/create', [LeagueController::class, 'create'])->name('leagues.create');
@@ -191,6 +187,10 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
 Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::post('/request-sub', [HomeController::class, 'requestSub'])->name('requestSub')->middleware('throttle:5,60');
 Route::get('/privacy', fn () => view('privacy'))->name('privacy');
+
+// Public, unlisted ad-hoc scorecard generator (no link anywhere — URL only).
+Route::get('/scorecard', [\App\Http\Controllers\ScorecardGeneratorController::class, 'form'])->name('scorecardGenerator');
+Route::get('/scorecard/print', [\App\Http\Controllers\ScorecardGeneratorController::class, 'print'])->name('scorecardGenerator.print');
 Route::get('/sms-terms', fn () => view('sms-terms'))->name('sms-terms');
 
 Route::get('/players', [PlayerController::class, 'index'])->name('players.index');

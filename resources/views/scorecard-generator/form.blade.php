@@ -47,7 +47,7 @@
 </head>
 <body>
     <div class="container">
-        <a href="{{ route('admin.dashboard') }}" class="back-link">&larr; Back to Dashboard</a>
+        <a href="{{ route('home') }}" class="back-link">&larr; Home</a>
         <div class="card">
             <h1>🖨️ Scorecard Generator</h1>
             <div class="subtitle">Pick a course, choose 9 or 18 holes, type in players and their playing handicaps, then print a blank scorecard.</div>
@@ -60,7 +60,7 @@
                 </div>
             @endif
 
-            <form action="{{ route('admin.scorecardGenerator.print') }}" method="GET" target="_blank">
+            <form action="{{ route('scorecardGenerator.print') }}" method="GET" target="_blank">
                 <div class="field">
                     <label for="golf_course_id">Golf Course</label>
                     <select name="golf_course_id" id="golf_course_id" required onchange="populateTeeboxes()">

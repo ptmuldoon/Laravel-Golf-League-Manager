@@ -517,7 +517,6 @@
             <a href="{{ route('admin.players') }}">👥 Players</a>
             <a href="{{ route('admin.users') }}">🔑 Users</a>
             <a href="{{ route('admin.courses.index') }}">⛳ Courses</a>
-            <a href="{{ route('admin.scorecardGenerator') }}">🖨️ Scorecard</a>
             @if(auth()->user()->isSuperAdmin())
                 <a href="{{ route('admin.super.index') }}">🛡️ Super</a>
             @endif
