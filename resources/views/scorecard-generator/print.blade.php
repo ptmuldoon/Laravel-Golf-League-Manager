@@ -65,19 +65,16 @@
         $hasFront = $front->isNotEmpty();
         $hasBack = $back->isNotEmpty();
 
-        // Build the ordered column model with OUT/IN/TOT subtotal columns.
+        // Build the ordered column model. OUT/IN subtotal columns only appear on
+        // an 18-hole card; a 9-hole card just shows the holes and a TOT column.
         $columns = [];
         foreach ($holes as $h) {
             $columns[] = ['type' => 'hole', 'h' => $h];
-            if ($h->hole_number == 9 && $hasBack) {
+            if (!$nineHole && $h->hole_number == 9 && $hasBack) {
                 $columns[] = ['type' => 'out'];
             }
         }
-        if ($hasFront && $hasBack) {
-            $columns[] = ['type' => 'in'];
-        } elseif ($hasFront) {
-            $columns[] = ['type' => 'out'];
-        } else {
+        if (!$nineHole) {
             $columns[] = ['type' => 'in'];
         }
         $columns[] = ['type' => 'tot'];
