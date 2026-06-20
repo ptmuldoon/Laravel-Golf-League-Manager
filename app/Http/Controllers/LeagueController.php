@@ -2362,13 +2362,19 @@ class LeagueController extends Controller
                 : collect();
             $winnerPlayerCount = $winners->sum(fn($t) => $t->players->count());
 
+            // On a tie, split one team's payout across the tied teams so each
+            // tied player receives an equal, smaller share.
+            $tieCount = $winners->count();
+            $effectivePerPlayer = $tieCount > 0 ? round($perPlayer / $tieCount, 2) : $perPlayer;
+
             $statuses[] = [
                 'segment' => $segment,
                 'is_complete' => $isComplete,
                 'winners' => $winners,
-                'per_player' => $perPlayer,
+                'tie_count' => $tieCount,
+                'per_player' => $effectivePerPlayer,
                 'winner_player_count' => $winnerPlayerCount,
-                'total' => $perPlayer * $winnerPlayerCount,
+                'total' => $effectivePerPlayer * $winnerPlayerCount,
                 'is_paid' => in_array($segment->id, $paidSegmentIds),
             ];
         }
@@ -2420,10 +2426,15 @@ class LeagueController extends Controller
         if ($maxPts <= 0) {
             return back()->withErrors(['error' => 'No results found to determine a winner.']);
         }
-        $winners = $segment->teams->filter(fn($t) => ($points[$t->id] ?? 0) == $maxPts);
+        $winners = $segment->teams->filter(fn($t) => ($points[$t->id] ?? 0) == $maxPts)->values();
+
+        // On a tie, split one team's payout across the tied teams.
+        $tieCount = $winners->count();
+        $effectivePerPlayer = round($perPlayer / $tieCount, 2);
+        $tieNote = $tieCount > 1 ? " (tie split {$tieCount} ways)" : '';
 
         $paidCount = 0;
-        DB::transaction(function () use ($winners, $league, $segment, $perPlayer, &$paidCount) {
+        DB::transaction(function () use ($winners, $league, $segment, $effectivePerPlayer, $tieNote, &$paidCount) {
             foreach ($winners as $team) {
                 foreach ($team->players as $player) {
                     \App\Models\LeagueFinance::create([
@@ -2431,16 +2442,16 @@ class LeagueController extends Controller
                         'league_segment_id' => $segment->id,
                         'player_id' => $player->id,
                         'type' => 'winnings',
-                        'amount' => $perPlayer,
+                        'amount' => $effectivePerPlayer,
                         'date' => now()->toDateString(),
-                        'notes' => "{$segment->name} winner — {$team->name}",
+                        'notes' => "{$segment->name} winner — {$team->name}{$tieNote}",
                     ]);
                     $paidCount++;
                 }
             }
         });
 
-        return back()->with('success', "Paid {$paidCount} player(s) \${$perPlayer} each for {$segment->name}.");
+        return back()->with('success', "Paid {$paidCount} player(s) \${$effectivePerPlayer} each for {$segment->name}.");
     }
 
     /**
