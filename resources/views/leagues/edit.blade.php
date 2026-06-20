@@ -284,6 +284,14 @@
                         @enderror
                         <div class="help-text">Amount paid out for par 3 contest winners</div>
                     </div>
+                    <div class="form-group">
+                        <label for="segment_winner_payout">Season Winner Payout ($ per player)</label>
+                        <input type="number" id="segment_winner_payout" name="segment_winner_payout" value="{{ old('segment_winner_payout', $league->segment_winner_payout) }}" step="0.01" min="0" placeholder="e.g., 50.00">
+                        @error('segment_winner_payout')
+                            <div class="error">{{ $message }}</div>
+                        @enderror
+                        <div class="help-text">Paid to each player on the winning team when a season/segment is complete</div>
+                    </div>
                 </div>
 
                 <div class="form-group">

@@ -327,6 +327,10 @@
                     <div class="info-value">${{ number_format($league->par3_payout ?? 0, 2) }}</div>
                 </div>
                 <div class="info-item">
+                    <div class="info-label">Season Winner Payout</div>
+                    <div class="info-value">${{ number_format($league->segment_winner_payout ?? 0, 2) }} <span style="font-size: 0.7em; color: #888; font-weight: 400;">/ player</span></div>
+                </div>
+                <div class="info-item">
                     <div class="info-label">Place Payouts</div>
                     <div class="info-value">{{ number_format($league->payout_1st_pct, 0) }}% / {{ number_format($league->payout_2nd_pct, 0) }}% / {{ number_format($league->payout_3rd_pct, 0) }}%</div>
                 </div>

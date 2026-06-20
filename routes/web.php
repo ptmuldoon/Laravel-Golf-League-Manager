@@ -146,6 +146,7 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
     Route::get('/leagues/{league_id}/finances', [LeagueController::class, 'showFinances'])->name('leagues.finances');
     Route::post('/leagues/{league_id}/finances', [LeagueController::class, 'storeFinance'])->name('leagues.finances.store');
     Route::delete('/leagues/{league_id}/finances/{id}', [LeagueController::class, 'deleteFinance'])->name('leagues.finances.delete');
+    Route::post('/leagues/{league_id}/segments/{segment_id}/payout', [LeagueController::class, 'processSegmentPayout'])->name('leagues.segmentPayout');
     // Team routes
     Route::post('/teams', [TeamController::class, 'store'])->name('teams.store');
     Route::get('/teams/{id}', [TeamController::class, 'show'])->name('teams.show');

@@ -8,6 +8,7 @@ class LeagueFinance extends Model
 {
     protected $fillable = [
         'league_id',
+        'league_segment_id',
         'player_id',
         'type',
         'amount',

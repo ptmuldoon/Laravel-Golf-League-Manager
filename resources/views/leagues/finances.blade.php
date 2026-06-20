@@ -163,6 +163,70 @@
             </div>
         </div>
 
+        @if(!empty($segmentPayouts))
+            <div class="content-section">
+                <h2 class="section-title" style="font-size: 1.3em;">Season Payouts</h2>
+                <div style="color: #666; font-size: 0.9em; margin-bottom: 14px;">
+                    Pays ${{ number_format((float) ($league->segment_winner_payout ?? 0), 2) }} to each player on a season's winning team.
+                    @if((float) ($league->segment_winner_payout ?? 0) <= 0)
+                        <strong>Set a "Season Winner Payout" amount on the <a href="{{ route('admin.leagues.edit', $league->id) }}">league settings</a> to enable.</strong>
+                    @endif
+                </div>
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.95em;">
+                        <thead>
+                            <tr style="background: var(--primary-light); color: var(--primary-color);">
+                                <th style="padding: 8px 10px; text-align: left;">Season</th>
+                                <th style="padding: 8px 10px; text-align: left;">Status</th>
+                                <th style="padding: 8px 10px; text-align: left;">Winner(s)</th>
+                                <th style="padding: 8px 10px; text-align: right;">Total</th>
+                                <th style="padding: 8px 10px; text-align: right;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($segmentPayouts as $sp)
+                                <tr style="border-bottom: 1px solid #f0f0f0;">
+                                    <td style="padding: 8px 10px; font-weight: 600;">{{ $sp['segment']->name }}
+                                        <span style="color: #999; font-weight: 400; font-size: 0.85em;">(wks {{ $sp['segment']->start_week }}–{{ $sp['segment']->end_week }})</span>
+                                    </td>
+                                    <td style="padding: 8px 10px;">
+                                        @if($sp['is_paid'])
+                                            <span style="color: #155724; font-weight: 600;">✓ Paid</span>
+                                        @elseif($sp['is_complete'])
+                                            <span style="color: #856404; font-weight: 600;">Ready</span>
+                                        @else
+                                            <span style="color: #999;">In progress</span>
+                                        @endif
+                                    </td>
+                                    <td style="padding: 8px 10px;">
+                                        {{ $sp['winners']->isNotEmpty() ? $sp['winners']->pluck('name')->implode(', ') : '—' }}
+                                    </td>
+                                    <td style="padding: 8px 10px; text-align: right;">
+                                        {{ $sp['total'] > 0 ? '$' . number_format($sp['total'], 2) : '—' }}
+                                        @if($sp['winner_player_count'] > 0)
+                                            <span style="color: #999; font-size: 0.8em;">({{ $sp['winner_player_count'] }} players)</span>
+                                        @endif
+                                    </td>
+                                    <td style="padding: 8px 10px; text-align: right;">
+                                        @if($sp['is_paid'])
+                                            <span style="color: #999;">—</span>
+                                        @elseif($sp['is_complete'] && $sp['per_player'] > 0 && $sp['winners']->isNotEmpty())
+                                            <form method="POST" action="{{ route('admin.leagues.segmentPayout', [$league->id, $sp['segment']->id]) }}" onsubmit="return confirm('Pay ${{ number_format($sp['per_player'], 2) }} to each of the {{ $sp['winner_player_count'] }} players on {{ $sp['winners']->pluck('name')->implode(', ') }}? This records winnings entries and cannot be undone here.');">
+                                                @csrf
+                                                <button type="submit" style="padding: 6px 14px; border: none; border-radius: 6px; background: var(--primary-color); color: white; font-weight: 600; cursor: pointer; font-size: 0.85em;">Process Payout</button>
+                                            </form>
+                                        @else
+                                            <span style="color: #ccc;">—</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        @endif
+
         <div class="content-section">
             <h2 class="section-title" style="font-size: 1.3em;">Add Transaction</h2>
             <form method="POST" action="{{ route('admin.leagues.finances.store', $league->id) }}">

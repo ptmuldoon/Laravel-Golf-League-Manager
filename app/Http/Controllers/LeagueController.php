@@ -81,6 +81,7 @@ class LeagueController extends Controller
             'tee_time_interval' => 'nullable|integer|min:1|max:30',
             'fee_per_player' => 'nullable|numeric|min:0',
             'par3_payout' => 'nullable|numeric|min:0',
+            'segment_winner_payout' => 'nullable|numeric|min:0',
             'payout_1st_pct' => 'nullable|numeric|min:0|max:100',
             'payout_2nd_pct' => 'nullable|numeric|min:0|max:100',
             'payout_3rd_pct' => 'nullable|numeric|min:0|max:100',
@@ -189,6 +190,7 @@ class LeagueController extends Controller
             'is_active' => 'boolean',
             'fee_per_player' => 'nullable|numeric|min:0',
             'par3_payout' => 'nullable|numeric|min:0',
+            'segment_winner_payout' => 'nullable|numeric|min:0',
             'payout_1st_pct' => 'nullable|numeric|min:0|max:100',
             'payout_2nd_pct' => 'nullable|numeric|min:0|max:100',
             'payout_3rd_pct' => 'nullable|numeric|min:0|max:100',
@@ -255,6 +257,7 @@ class LeagueController extends Controller
                 'is_active' => false,
                 'fee_per_player' => $source->fee_per_player,
                 'par3_payout' => $source->par3_payout,
+                'segment_winner_payout' => $source->segment_winner_payout,
                 'payout_1st_pct' => $source->payout_1st_pct,
                 'payout_2nd_pct' => $source->payout_2nd_pct,
                 'payout_3rd_pct' => $source->payout_3rd_pct,
@@ -2305,11 +2308,139 @@ class LeagueController extends Controller
      */
     public function showFinances($leagueId)
     {
-        $league = League::with(['players', 'finances.player'])->findOrFail($leagueId);
+        $league = League::with(['players', 'finances.player', 'segments.teams.players'])->findOrFail($leagueId);
 
         ['playerSummaries' => $playerSummaries, 'totals' => $totals] = $this->buildFinanceSummary($league);
+        $segmentPayouts = $this->segmentPayoutStatuses($league);
 
-        return view('leagues.finances', compact('league', 'playerSummaries', 'totals'));
+        return view('leagues.finances', compact('league', 'playerSummaries', 'totals', 'segmentPayouts'));
+    }
+
+    /**
+     * Per-segment season-winner payout status: whether the segment is complete,
+     * who won, the per-player/total amounts, and whether it's already been paid.
+     */
+    private function segmentPayoutStatuses(League $league): array
+    {
+        $perPlayer = (float) ($league->segment_winner_payout ?? 0);
+
+        $allMatches = $league->matches()
+            ->with('result')
+            ->get(['id', 'week_number', 'status', 'home_team_id', 'away_team_id']);
+
+        $paidSegmentIds = $league->finances()
+            ->whereNotNull('league_segment_id')
+            ->where('type', 'winnings')
+            ->pluck('league_segment_id')
+            ->unique()
+            ->all();
+
+        $statuses = [];
+        foreach ($league->segments->sortBy('start_week') as $segment) {
+            $rangeMatches = $allMatches->whereBetween('week_number', [$segment->start_week, $segment->end_week]);
+            $total = $rangeMatches->count();
+            $completed = $rangeMatches->where('status', 'completed')->count();
+            $isComplete = $total > 0 && $total === $completed;
+
+            // Accumulate this segment's team points from completed matches.
+            $points = [];
+            foreach ($segment->teams as $t) {
+                $points[$t->id] = 0;
+            }
+            foreach ($rangeMatches->where('status', 'completed') as $m) {
+                if (!$m->result) continue;
+                if ($m->home_team_id && isset($points[$m->home_team_id])) {
+                    $points[$m->home_team_id] += (float) ($m->result->team_points_home ?? 0);
+                }
+                if ($m->away_team_id && isset($points[$m->away_team_id])) {
+                    $points[$m->away_team_id] += (float) ($m->result->team_points_away ?? 0);
+                }
+            }
+            $maxPts = count($points) ? max($points) : 0;
+            $winners = $maxPts > 0
+                ? $segment->teams->filter(fn($t) => ($points[$t->id] ?? 0) == $maxPts)->values()
+                : collect();
+            $winnerPlayerCount = $winners->sum(fn($t) => $t->players->count());
+
+            $statuses[] = [
+                'segment' => $segment,
+                'is_complete' => $isComplete,
+                'winners' => $winners,
+                'per_player' => $perPlayer,
+                'winner_player_count' => $winnerPlayerCount,
+                'total' => $perPlayer * $winnerPlayerCount,
+                'is_paid' => in_array($segment->id, $paidSegmentIds),
+            ];
+        }
+
+        return $statuses;
+    }
+
+    /**
+     * Pay the season-winner payout to each player on a completed segment's
+     * winning team. One-time per segment (guarded against double payment).
+     */
+    public function processSegmentPayout($leagueId, $segmentId)
+    {
+        $league = League::with(['segments.teams.players'])->findOrFail($leagueId);
+        $segment = $league->segments->firstWhere('id', (int) $segmentId);
+        abort_unless($segment, 404);
+
+        $perPlayer = (float) ($league->segment_winner_payout ?? 0);
+        if ($perPlayer <= 0) {
+            return back()->withErrors(['error' => 'Set a Season Winner Payout amount on the league before processing.']);
+        }
+
+        if ($league->finances()->where('league_segment_id', $segment->id)->where('type', 'winnings')->exists()) {
+            return back()->withErrors(['error' => "Payout for {$segment->name} has already been processed."]);
+        }
+
+        $rangeMatches = $league->matches()
+            ->whereBetween('week_number', [$segment->start_week, $segment->end_week])
+            ->with('result')
+            ->get();
+        if ($rangeMatches->isEmpty() || $rangeMatches->where('status', '!=', 'completed')->isNotEmpty()) {
+            return back()->withErrors(['error' => "{$segment->name} is not complete yet."]);
+        }
+
+        $points = [];
+        foreach ($segment->teams as $t) {
+            $points[$t->id] = 0;
+        }
+        foreach ($rangeMatches as $m) {
+            if (!$m->result) continue;
+            if ($m->home_team_id && isset($points[$m->home_team_id])) {
+                $points[$m->home_team_id] += (float) ($m->result->team_points_home ?? 0);
+            }
+            if ($m->away_team_id && isset($points[$m->away_team_id])) {
+                $points[$m->away_team_id] += (float) ($m->result->team_points_away ?? 0);
+            }
+        }
+        $maxPts = count($points) ? max($points) : 0;
+        if ($maxPts <= 0) {
+            return back()->withErrors(['error' => 'No results found to determine a winner.']);
+        }
+        $winners = $segment->teams->filter(fn($t) => ($points[$t->id] ?? 0) == $maxPts);
+
+        $paidCount = 0;
+        DB::transaction(function () use ($winners, $league, $segment, $perPlayer, &$paidCount) {
+            foreach ($winners as $team) {
+                foreach ($team->players as $player) {
+                    \App\Models\LeagueFinance::create([
+                        'league_id' => $league->id,
+                        'league_segment_id' => $segment->id,
+                        'player_id' => $player->id,
+                        'type' => 'winnings',
+                        'amount' => $perPlayer,
+                        'date' => now()->toDateString(),
+                        'notes' => "{$segment->name} winner — {$team->name}",
+                    ]);
+                    $paidCount++;
+                }
+            }
+        });
+
+        return back()->with('success', "Paid {$paidCount} player(s) \${$perPlayer} each for {$segment->name}.");
     }
 
     /**
