@@ -39,7 +39,9 @@ class AdminController extends Controller
             ->get();
 
         $recentMatches = LeagueMatch::with(['homeTeam', 'awayTeam', 'league', 'result.winningTeam'])
+            ->where('status', 'completed')
             ->orderBy('match_date', 'desc')
+            ->orderBy('tee_time', 'desc')
             ->take(10)
             ->get();
 
