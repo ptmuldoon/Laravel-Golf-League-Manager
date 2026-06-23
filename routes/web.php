@@ -85,6 +85,9 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
     Route::post('/courses/{course_id}/teeboxes', [GolfCourseController::class, 'addTeebox'])->name('courses.teeboxes.add');
     Route::put('/courses/{course_id}/teeboxes/{teebox_name}', [GolfCourseController::class, 'updateTeebox'])->name('courses.teeboxes.update');
     Route::delete('/courses/{course_id}/teeboxes/{teebox_name}', [GolfCourseController::class, 'deleteTeebox'])->name('courses.teeboxes.delete');
+    Route::get('/courses/{course_id}/nines/manage', [GolfCourseController::class, 'manageNines'])->name('courses.nines.manage');
+    Route::post('/courses/{course_id}/nines', [GolfCourseController::class, 'addNine'])->name('courses.nines.add');
+    Route::delete('/courses/{course_id}/nines/{nine_id}', [GolfCourseController::class, 'deleteNine'])->name('courses.nines.delete');
 
     // League routes
     Route::get('/leagues/list', [LeagueController::class, 'index'])->name('leagues.index');
@@ -147,6 +150,7 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
     Route::post('/leagues/{league_id}/finances', [LeagueController::class, 'storeFinance'])->name('leagues.finances.store');
     Route::delete('/leagues/{league_id}/finances/{id}', [LeagueController::class, 'deleteFinance'])->name('leagues.finances.delete');
     Route::post('/leagues/{league_id}/segments/{segment_id}/payout', [LeagueController::class, 'processSegmentPayout'])->name('leagues.segmentPayout');
+    Route::post('/leagues/{league_id}/week/{week_number}/nines', [LeagueController::class, 'setWeekNines'])->name('leagues.setWeekNines');
     // Team routes
     Route::post('/teams', [TeamController::class, 'store'])->name('teams.store');
     Route::get('/teams/{id}', [TeamController::class, 'show'])->name('teams.show');

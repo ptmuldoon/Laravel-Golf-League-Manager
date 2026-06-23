@@ -12,7 +12,7 @@ class ScorecardGeneratorController extends Controller
      */
     public function form()
     {
-        $courses = GolfCourse::with('courseInfo')->orderBy('name')->get();
+        $courses = GolfCourse::with('courseInfo', 'nines')->orderBy('name')->get();
 
         // Map of course id => sorted list of distinct teebox names (for the
         // dependent teebox dropdown).
@@ -20,7 +20,12 @@ class ScorecardGeneratorController extends Controller
             return [$course->id => $course->courseInfo->pluck('teebox')->unique()->sort()->values()->all()];
         });
 
-        return view('scorecard-generator.form', compact('courses', 'courseTeeboxes'));
+        // Map of course id => its nines (for multi-nine facilities).
+        $courseNines = $courses->mapWithKeys(function ($course) {
+            return [$course->id => $course->nines->map(fn($n) => ['id' => $n->id, 'name' => $n->name])->values()->all()];
+        });
+
+        return view('scorecard-generator.form', compact('courses', 'courseTeeboxes', 'courseNines'));
     }
 
     /**
@@ -32,6 +37,8 @@ class ScorecardGeneratorController extends Controller
             'golf_course_id' => 'required|exists:golf_courses,id',
             'teebox' => 'required|string',
             'holes' => 'required|in:front_9,back_9,full_18',
+            'front_nine_id' => 'nullable|exists:course_nines,id',
+            'back_nine_id' => 'nullable|exists:course_nines,id',
             'players' => 'required|array|min:1|max:4',
             'players.*.name' => 'nullable|string|max:60',
             'players.*.handicap' => 'nullable|integer|min:0|max:54',
@@ -39,28 +46,43 @@ class ScorecardGeneratorController extends Controller
 
         $course = GolfCourse::findOrFail($validated['golf_course_id']);
 
-        $range = match ($validated['holes']) {
-            'front_9' => [1, 9],
-            'back_9' => [10, 18],
-            default => [1, 18],
-        };
-        $holesLabel = match ($validated['holes']) {
-            'front_9' => 'Front 9',
-            'back_9' => 'Back 9',
-            default => '18 Holes',
-        };
+        if (!empty($validated['front_nine_id'])) {
+            // Multi-nine facility: build the played holes from the chosen nines
+            // (positions 1-18 with combined stroke index). Strokes are allocated
+            // across exactly the holes being played.
+            $allHoles = \App\Models\CourseNine::positionalHoles(
+                (int) $validated['front_nine_id'],
+                $validated['back_nine_id'] ? (int) $validated['back_nine_id'] : null,
+                $validated['teebox']
+            );
+            $holes = $allHoles;
+            $frontName = optional(\App\Models\CourseNine::find($validated['front_nine_id']))->name;
+            $backName = $validated['back_nine_id'] ? optional(\App\Models\CourseNine::find($validated['back_nine_id']))->name : null;
+            $holesLabel = $backName ? "{$frontName} + {$backName}" : "{$frontName} (9)";
+        } else {
+            $range = match ($validated['holes']) {
+                'front_9' => [1, 9],
+                'back_9' => [10, 18],
+                default => [1, 18],
+            };
+            $holesLabel = match ($validated['holes']) {
+                'front_9' => 'Front 9',
+                'back_9' => 'Back 9',
+                default => '18 Holes',
+            };
 
-        // Load the full set of holes for the teebox so handicap strokes are
-        // allocated across all 18 by true stroke index, then only the holes
-        // being played are shown. This naturally "halves" the strokes for a
-        // 9-hole round and assigns the odd stroke to the nine whose holes carry
-        // the lower stroke indexes.
-        $allHoles = $course->courseInfo()
-            ->where('teebox', $validated['teebox'])
-            ->orderBy('hole_number')
-            ->get();
+            // Load the full set of holes for the teebox so handicap strokes are
+            // allocated across all 18 by true stroke index, then only the holes
+            // being played are shown. This naturally "halves" the strokes for a
+            // 9-hole round and assigns the odd stroke to the nine whose holes
+            // carry the lower stroke indexes.
+            $allHoles = $course->courseInfo()
+                ->where('teebox', $validated['teebox'])
+                ->orderBy('hole_number')
+                ->get();
 
-        $holes = $allHoles->whereBetween('hole_number', $range)->values();
+            $holes = $allHoles->whereBetween('hole_number', $range)->values();
+        }
 
         if ($holes->isEmpty()) {
             return back()->withErrors(['error' => 'No hole data found for that course/teebox.'])->withInput();
@@ -96,13 +118,19 @@ class ScorecardGeneratorController extends Controller
             return back()->withErrors(['error' => 'Enter at least one player name.'])->withInput();
         }
 
+        // Nine holes => 18/9 handicap annotation. Single played nine, or a
+        // legacy front/back-9 selection.
+        $nineHole = !empty($validated['front_nine_id'])
+            ? empty($validated['back_nine_id'])
+            : ($validated['holes'] !== 'full_18');
+
         return view('scorecard-generator.print', [
             'course' => $course,
             'teebox' => $validated['teebox'],
             'holesLabel' => $holesLabel,
             'holes' => $holes,
             'players' => $players,
-            'nineHole' => $validated['holes'] !== 'full_18',
+            'nineHole' => $nineHole,
         ]);
     }
 }

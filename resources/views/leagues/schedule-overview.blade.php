@@ -130,6 +130,25 @@
                             Update Week
                         </button>
                     </form>
+                    @if($league->golfCourse && $league->golfCourse->nines->isNotEmpty())
+                        <form action="{{ route('admin.leagues.setWeekNines', [$league->id, $weekNumber]) }}" method="POST" onclick="event.stopPropagation()" style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                            @csrf
+                            <span style="font-size: 0.78em; color: #6f42c1; font-weight: 600; white-space: nowrap;">Nines:</span>
+                            <select name="front_nine_id" required style="padding: 6px 8px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 0.8em; cursor: pointer;">
+                                <option value="">Front…</option>
+                                @foreach($league->golfCourse->nines as $nine)
+                                    <option value="{{ $nine->id }}" {{ $firstMatch->front_nine_id == $nine->id ? 'selected' : '' }}>{{ $nine->name }}</option>
+                                @endforeach
+                            </select>
+                            <select name="back_nine_id" style="padding: 6px 8px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 0.8em; cursor: pointer;">
+                                <option value="">Back (none)</option>
+                                @foreach($league->golfCourse->nines as $nine)
+                                    <option value="{{ $nine->id }}" {{ $firstMatch->back_nine_id == $nine->id ? 'selected' : '' }}>{{ $nine->name }}</option>
+                                @endforeach
+                            </select>
+                            <button type="submit" style="padding: 6px 12px; border: none; border-radius: 6px; font-size: 0.8em; font-weight: 600; cursor: pointer; background: #6f42c1; color: white; white-space: nowrap;">Set</button>
+                        </form>
+                    @endif
                     <a href="{{ route('admin.leagues.scores', $league->id) }}?week={{ $weekNumber }}" onclick="event.stopPropagation()" style="padding: 6px 14px; border-radius: 6px; font-size: 0.85em; font-weight: 600; text-decoration: none; background: #17a2b8; color: white; white-space: nowrap; display: inline-block;">
                         📝 Post
                     </a>

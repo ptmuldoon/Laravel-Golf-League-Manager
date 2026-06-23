@@ -565,26 +565,34 @@ class HomeController extends Controller
                 // Build scorecard data for each current week match
                 $currentWeekScorecardData = [];
                 foreach ($currentWeekMatches as $cwMatch) {
-                    $holeRange = $cwMatch->holes === 'back_9' ? [10, 18] : [1, 9];
+                    $holeRange = $cwMatch->holeRange();
 
-                    $allCourseInfoForMatch = $cwMatch->golfCourse->courseInfo
-                        ->where('teebox', $cwMatch->teebox)
-                        ->sortBy('hole_number')
-                        ->values();
-                    $courseInfo = $allCourseInfoForMatch->whereBetween('hole_number', $holeRange)->values();
+                    if ($cwMatch->isNinesMode()) {
+                        $allCourseInfoForMatch = $cwMatch->playedCourseInfo();
+                        $courseInfo = $allCourseInfoForMatch;
+                        $rsp = $cwMatch->ratingSlopePar();
+                        $par18 = $rsp['par'];
+                        $slope18 = (float) $rsp['slope'];
+                        $rating18 = (float) $rsp['rating'];
+                    } else {
+                        $allCourseInfoForMatch = $cwMatch->golfCourse->courseInfo
+                            ->where('teebox', $cwMatch->teebox)
+                            ->sortBy('hole_number')
+                            ->values();
+                        $courseInfo = $allCourseInfoForMatch->whereBetween('hole_number', $holeRange)->values();
 
-                    // Get slope/rating from hole 1 data
-                    $courseInfoHole1 = $cwMatch->golfCourse->courseInfo
-                        ->where('teebox', $cwMatch->teebox)
-                        ->where('hole_number', 1)
-                        ->first();
+                        // Get slope/rating from hole 1 data
+                        $courseInfoHole1 = $cwMatch->golfCourse->courseInfo
+                            ->where('teebox', $cwMatch->teebox)
+                            ->where('hole_number', 1)
+                            ->first();
 
-                    $allCourseInfoForMatch = $cwMatch->golfCourse->courseInfo
-                        ->where('teebox', $cwMatch->teebox);
-                    $par18 = $allCourseInfoForMatch->sum('par');
-
-                    $slope18 = $courseInfoHole1 ? (float) $courseInfoHole1->slope : null;
-                    $rating18 = $courseInfoHole1 ? (float) $courseInfoHole1->rating : null;
+                        $allCourseInfoForMatch = $cwMatch->golfCourse->courseInfo
+                            ->where('teebox', $cwMatch->teebox);
+                        $par18 = $allCourseInfoForMatch->sum('par');
+                        $slope18 = $courseInfoHole1 ? (float) $courseInfoHole1->slope : null;
+                        $rating18 = $courseInfoHole1 ? (float) $courseInfoHole1->rating : null;
+                    }
 
                     $playerHandicaps = [];
                     foreach ($cwMatch->matchPlayers as $mp) {
@@ -608,7 +616,7 @@ class HomeController extends Controller
 
                 // Calculate per-hole match results for each match
                 foreach ($currentWeekMatches as $cwMatch) {
-                    $holeRange = $cwMatch->holes === 'back_9' ? [10, 18] : [1, 9];
+                    $holeRange = $cwMatch->holeRange();
                     $useGross = ($cwMatch->score_mode === 'gross');
                     $scoreField = $useGross ? 'strokes' : 'net_score';
 
@@ -810,23 +818,33 @@ class HomeController extends Controller
         // Build scorecard data and hole results
         $scorecardData = [];
         foreach ($weekMatches as $match) {
-            $holeRange = $match->holes === 'back_9' ? [10, 18] : [1, 9];
+            $holeRange = $match->holeRange();
 
-            $allCourseInfoForMatch = $match->golfCourse->courseInfo
-                ->where('teebox', $match->teebox)
-                ->sortBy('hole_number')
-                ->values();
-            $courseInfo = $allCourseInfoForMatch->whereBetween('hole_number', $holeRange)->values();
+            if ($match->isNinesMode()) {
+                // Multi-nine facility: positional holes (combined stroke index)
+                // and combined rating/slope/par.
+                $allCourseInfoForMatch = $match->playedCourseInfo();
+                $courseInfo = $allCourseInfoForMatch;
+                $rsp = $match->ratingSlopePar();
+                $par18 = $rsp['par'];
+                $slope18 = (float) $rsp['slope'];
+                $rating18 = (float) $rsp['rating'];
+            } else {
+                $allCourseInfoForMatch = $match->golfCourse->courseInfo
+                    ->where('teebox', $match->teebox)
+                    ->sortBy('hole_number')
+                    ->values();
+                $courseInfo = $allCourseInfoForMatch->whereBetween('hole_number', $holeRange)->values();
 
-            $courseInfoHole1 = $match->golfCourse->courseInfo
-                ->where('teebox', $match->teebox)
-                ->where('hole_number', 1)
-                ->first();
+                $courseInfoHole1 = $match->golfCourse->courseInfo
+                    ->where('teebox', $match->teebox)
+                    ->where('hole_number', 1)
+                    ->first();
 
-            $par18 = $allCourseInfoForMatch->sum('par');
-
-            $slope18 = $courseInfoHole1 ? (float) $courseInfoHole1->slope : null;
-            $rating18 = $courseInfoHole1 ? (float) $courseInfoHole1->rating : null;
+                $par18 = $allCourseInfoForMatch->sum('par');
+                $slope18 = $courseInfoHole1 ? (float) $courseInfoHole1->slope : null;
+                $rating18 = $courseInfoHole1 ? (float) $courseInfoHole1->rating : null;
+            }
 
             $playerHandicaps = [];
             foreach ($match->matchPlayers as $mp) {

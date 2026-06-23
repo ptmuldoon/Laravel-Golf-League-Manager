@@ -501,7 +501,8 @@ class LeagueController extends Controller
             },
             'players',
             'teams.players',
-            'segments'
+            'segments',
+            'golfCourse.nines',
         ])->findOrFail($leagueId);
 
         $matchesByWeek = $league->matches->groupBy('week_number');
@@ -679,6 +680,33 @@ class LeagueController extends Controller
 
         return redirect()->route('admin.leagues.scheduleOverview', $leagueId)
             ->with('success', "Tee times balanced for {$scope}: {$summary['matches_moved']} of {$summary['total_matches']} matches re-slotted across {$summary['weeks_processed']} weeks.");
+    }
+
+    /**
+     * Assign the front/back nine (multi-nine facility) to all matches in a week.
+     */
+    public function setWeekNines(Request $request, $leagueId, $weekNumber)
+    {
+        $league = League::with('golfCourse.nines')->findOrFail($leagueId);
+
+        $validated = $request->validate([
+            'front_nine_id' => 'required|exists:course_nines,id',
+            'back_nine_id' => 'nullable|exists:course_nines,id',
+        ]);
+
+        $nineIds = optional($league->golfCourse)->nines->pluck('id') ?? collect();
+        if (!$nineIds->contains((int) $validated['front_nine_id'])
+            || ($validated['back_nine_id'] && !$nineIds->contains((int) $validated['back_nine_id']))) {
+            return back()->withErrors(['error' => 'Selected nine does not belong to this league\'s course.']);
+        }
+
+        // Holes value for nines is positional; keep front_9 as a harmless default.
+        $league->matches()->where('week_number', $weekNumber)->update([
+            'front_nine_id' => $validated['front_nine_id'],
+            'back_nine_id' => $validated['back_nine_id'] ?: null,
+        ]);
+
+        return back()->with('success', "Week {$weekNumber} nines updated.");
     }
 
     /**
@@ -1391,7 +1419,7 @@ class LeagueController extends Controller
 
             // Build course info and handicap data for each match
             foreach ($matches as $match) {
-                $holeRange = $match->holes === 'back_9' ? [10, 18] : [1, 9];
+                $holeRange = $match->holeRange();
                 $allHolesForMatch = $match->golfCourse->courseInfo()
                     ->where('teebox', $match->teebox)
                     ->orderBy('hole_number')
@@ -1435,7 +1463,7 @@ class LeagueController extends Controller
         $weekPlayers = collect();
         if ($selectedWeek && $matches->isNotEmpty()) {
             $firstMatch = $matches->first();
-            $holeRange = $firstMatch->holes === 'back_9' ? [10, 18] : [1, 9];
+            $holeRange = $firstMatch->holeRange();
             $par3Holes = $firstMatch->golfCourse->courseInfo()
                 ->where('teebox', $firstMatch->teebox)
                 ->where('par', 3)
@@ -1553,17 +1581,27 @@ class LeagueController extends Controller
             $affectedPlayerIds = [];
 
             foreach ($matches as $match) {
-                // Refresh handicaps to match date before processing scores
-                $courseInfoHole1 = $match->golfCourse->courseInfo()
-                    ->where('teebox', $match->teebox)
-                    ->where('hole_number', 1)
-                    ->first();
-                $allCI = $match->golfCourse->courseInfo()
-                    ->where('teebox', $match->teebox)
-                    ->get();
-                $par18 = $allCI->sum('par');
-                $slope = $courseInfoHole1 ? (float) $courseInfoHole1->slope : null;
-                $rating = $courseInfoHole1 ? (float) $courseInfoHole1->rating : null;
+                // Refresh handicaps to match date before processing scores.
+                // $allCI holds the played holes (positional + combined stroke
+                // index for nines), used for par, ranking and stroke allocation.
+                if ($match->isNinesMode()) {
+                    $rsp = $match->ratingSlopePar();
+                    $par18 = $rsp['par'];
+                    $slope = (float) $rsp['slope'];
+                    $rating = (float) $rsp['rating'];
+                    $allCI = $match->playedCourseInfo();
+                } else {
+                    $courseInfoHole1 = $match->golfCourse->courseInfo()
+                        ->where('teebox', $match->teebox)
+                        ->where('hole_number', 1)
+                        ->first();
+                    $allCI = $match->golfCourse->courseInfo()
+                        ->where('teebox', $match->teebox)
+                        ->get();
+                    $par18 = $allCI->sum('par');
+                    $slope = $courseInfoHole1 ? (float) $courseInfoHole1->slope : null;
+                    $rating = $courseInfoHole1 ? (float) $courseInfoHole1->rating : null;
+                }
 
                 foreach ($match->matchPlayers as $mp) {
                     // Refresh from the player actually playing the slot. When a
@@ -1591,7 +1629,7 @@ class LeagueController extends Controller
                 }
 
                 // Get course info for hole handicap rankings
-                $holeRange = $match->holes === 'back_9' ? [10, 18] : [1, 9];
+                $holeRange = $match->holeRange();
                 $courseInfoHoles = $allCI->keyBy('hole_number');
                 $sortedHolesByHandicap = $allCI->sortBy('handicap')->pluck('hole_number')->values();
 
@@ -1693,7 +1731,8 @@ class LeagueController extends Controller
                 $match->update(['status' => 'completed']);
 
                 // Create Round + Score records for each player's handicap history
-                $holesPlayed = 9;
+                $holesPlayed = count($match->holeNumbers());
+                $roundRsp = $match->isNinesMode() ? $match->ratingSlopePar() : null;
                 foreach ($match->matchPlayers as $mp) {
                     $activePlayer = $mp->substitute_player_id ? $mp->substitutePlayer : $mp->player;
                     if (!$activePlayer) continue;
@@ -1715,6 +1754,8 @@ class LeagueController extends Controller
                         'teebox' => $match->teebox,
                         'played_at' => $match->match_date->format('Y-m-d'),
                         'holes_played' => $holesPlayed,
+                        'rating' => $roundRsp['rating'] ?? null,
+                        'slope' => $roundRsp['slope'] ?? null,
                     ]);
 
                     foreach ($matchScores as $ms) {
@@ -1780,13 +1821,18 @@ class LeagueController extends Controller
         // Prepare scorecard data for each match
         $scorecards = [];
         foreach ($matches as $match) {
-            $holeRange = $match->holes === 'back_9' ? [10, 18] : [1, 9];
+            $holeRange = $match->holeRange();
 
-            $allCourseInfo = $match->golfCourse->courseInfo()
-                ->where('teebox', $match->teebox)
-                ->orderBy('hole_number')
-                ->get();
-            $courseInfo = $allCourseInfo->whereBetween('hole_number', $holeRange)->values();
+            if ($match->isNinesMode()) {
+                $allCourseInfo = $match->playedCourseInfo();
+                $courseInfo = $allCourseInfo;
+            } else {
+                $allCourseInfo = $match->golfCourse->courseInfo()
+                    ->where('teebox', $match->teebox)
+                    ->orderBy('hole_number')
+                    ->get();
+                $courseInfo = $allCourseInfo->whereBetween('hole_number', $holeRange)->values();
+            }
 
             if ($match->home_team_id) {
                 $homePlayers = $match->matchPlayers->where('team_id', $match->home_team_id);
@@ -1802,16 +1848,23 @@ class LeagueController extends Controller
                 ?? ($awayPlayers->first() ? ($playerTeamNames[$awayPlayers->first()->player_id] ?? 'Away') : 'Away');
 
             // Compute handicaps as of match date (USGA formula)
-            $courseInfoHole1 = $match->golfCourse->courseInfo()
-                ->where('teebox', $match->teebox)
-                ->where('hole_number', 1)
-                ->first();
-            $allCourseInfo = $match->golfCourse->courseInfo()
-                ->where('teebox', $match->teebox)
-                ->get();
-            $par18 = $allCourseInfo->sum('par');
-            $slope18 = $courseInfoHole1 ? (float) $courseInfoHole1->slope : null;
-            $rating18 = $courseInfoHole1 ? (float) $courseInfoHole1->rating : null;
+            if ($match->isNinesMode()) {
+                $rsp = $match->ratingSlopePar();
+                $par18 = $rsp['par'];
+                $slope18 = (float) $rsp['slope'];
+                $rating18 = (float) $rsp['rating'];
+            } else {
+                $courseInfoHole1 = $match->golfCourse->courseInfo()
+                    ->where('teebox', $match->teebox)
+                    ->where('hole_number', 1)
+                    ->first();
+                $allCourseInfo = $match->golfCourse->courseInfo()
+                    ->where('teebox', $match->teebox)
+                    ->get();
+                $par18 = $allCourseInfo->sum('par');
+                $slope18 = $courseInfoHole1 ? (float) $courseInfoHole1->slope : null;
+                $rating18 = $courseInfoHole1 ? (float) $courseInfoHole1->rating : null;
+            }
 
             $playerHandicaps = [];
             foreach ($match->matchPlayers as $mp) {
@@ -2719,7 +2772,7 @@ class LeagueController extends Controller
         // Build per-player, per-week score data
         $playerWeekData = [];
         foreach ($completedMatches as $match) {
-            $holeRange = $match->holes === 'back_9' ? [10, 18] : [1, 9];
+            $holeRange = $match->holeRange();
             $side = $match->holes === 'back_9' ? 'Back' : 'Front';
 
             // Get par values for this match's holes

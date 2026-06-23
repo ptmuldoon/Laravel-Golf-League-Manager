@@ -327,4 +327,67 @@ PROMPT;
         return redirect()->route('admin.courses.teeboxes.manage', $courseId)
             ->with('success', "Teebox '{$teeboxName}' deleted successfully!");
     }
+
+    /**
+     * Manage first-class nines for a multi-nine facility (e.g. a 27-hole course
+     * with three nines that combine into 18).
+     */
+    public function manageNines($courseId)
+    {
+        $course = GolfCourse::with(['nines.courseInfo'])->findOrFail($courseId);
+
+        return view('golf-courses.manage-nines', compact('course'));
+    }
+
+    public function addNine(Request $request, $courseId)
+    {
+        $course = GolfCourse::findOrFail($courseId);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:50',
+            'teebox' => 'required|string|max:50',
+            'rating' => 'required|numeric|min:20|max:45',  // 9-hole rating
+            'slope' => 'required|numeric|min:55|max:155',  // 9-hole slope
+            'pars' => 'required|array|size:9',
+            'pars.*' => 'required|integer|min:3|max:6',
+            'handicaps' => 'nullable|array',
+            'handicaps.*' => 'nullable|integer|min:1|max:9',
+            'yardages' => 'nullable|array',
+            'yardages.*' => 'nullable|integer|min:50|max:700',
+        ]);
+
+        $nine = $course->nines()->create([
+            'name' => $validated['name'],
+            'display_order' => $course->nines()->count() + 1,
+        ]);
+
+        foreach ($validated['pars'] as $i => $par) {
+            $course->courseInfo()->create([
+                'course_nine_id' => $nine->id,
+                'teebox' => $validated['teebox'],
+                'slope' => $validated['slope'],
+                'rating' => $validated['rating'],
+                'hole_number' => $i + 1,
+                'par' => $par,
+                'handicap' => $validated['handicaps'][$i] ?? ($i + 1),
+                'yardage' => $validated['yardages'][$i] ?? null,
+            ]);
+        }
+
+        return redirect()->route('admin.courses.nines.manage', $courseId)
+            ->with('success', "Nine '{$validated['name']}' added.");
+    }
+
+    public function deleteNine($courseId, $nineId)
+    {
+        $course = GolfCourse::findOrFail($courseId);
+        $nine = $course->nines()->findOrFail($nineId);
+
+        // Remove the nine's hole rows, then the nine itself.
+        $course->courseInfo()->where('course_nine_id', $nine->id)->delete();
+        $nine->delete();
+
+        return redirect()->route('admin.courses.nines.manage', $courseId)
+            ->with('success', 'Nine deleted.');
+    }
 }

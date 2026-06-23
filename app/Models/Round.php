@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Round extends Model
 {
-    protected $fillable = ['player_id', 'match_player_id', 'golf_course_id', 'teebox', 'played_at', 'holes_played'];
+    protected $fillable = ['player_id', 'match_player_id', 'golf_course_id', 'teebox', 'played_at', 'holes_played', 'rating', 'slope'];
 
     public function player()
     {

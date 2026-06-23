@@ -153,6 +153,23 @@ class MatchPlayCalculator
      */
     protected function buildAllStrokeMaps(LeagueMatch $match): array
     {
+        // Multi-nine facilities: course handicap from the combined nine
+        // rating/slope/par, distributed across the played positions (1-18) by
+        // the combined stroke index.
+        if ($match->isNinesMode()) {
+            $rsp = $match->ratingSlopePar();
+            $strokeIndexes = $match->holeStrokeIndexes(); // position => combined SI
+            $maps = [];
+            foreach ($match->matchPlayers as $mp) {
+                $hi = (float) $mp->handicap_index;
+                $ch = (int) round(($hi * $rsp['slope'] / 113) + ($rsp['rating'] - $rsp['par']));
+                $maps[$mp->id] = $this->buildStrokeMapByIndex($ch, $strokeIndexes);
+            }
+            return $maps;
+        }
+
+        // Legacy single-course path (unchanged): 18-hole course handicap
+        // distributed across all 18 holes by hole handicap ranking.
         $allCourseInfo = $match->golfCourse->courseInfo()
             ->where('teebox', $match->teebox)
             ->orderBy('hole_number')
@@ -168,6 +185,33 @@ class MatchPlayCalculator
             $maps[$mp->id] = $this->buildStrokeMap($ch18, $allCourseInfo);
         }
         return $maps;
+    }
+
+    /**
+     * Distribute a course handicap across played positions using an explicit
+     * position => stroke-index map (hardest hole / lowest index first, wrapping
+     * for handicaps above the hole count).
+     *
+     * @param  array<int,int>  $strokeIndexes  position => stroke index
+     * @return array<int,int>  position => strokes received
+     */
+    protected function buildStrokeMapByIndex(int $courseHandicap, array $strokeIndexes): array
+    {
+        $strokesOnHole = [];
+        foreach (array_keys($strokeIndexes) as $pos) {
+            $strokesOnHole[$pos] = 0;
+        }
+        asort($strokeIndexes); // order positions by stroke index ascending
+        $orderedPositions = array_keys($strokeIndexes);
+        $remaining = max(0, $courseHandicap);
+        while ($remaining > 0) {
+            foreach ($orderedPositions as $pos) {
+                if ($remaining <= 0) break;
+                $strokesOnHole[$pos]++;
+                $remaining--;
+            }
+        }
+        return $strokesOnHole;
     }
 
     /**
@@ -194,7 +238,7 @@ class MatchPlayCalculator
      */
     protected function calculateIndividualMatchResult(LeagueMatch $match)
     {
-        $holeRange = $match->holes === 'back_9' ? [10, 18] : [1, 9];
+        $holeRange = $match->holeRange();
         $startHole = $holeRange[0];
         $endHole = $holeRange[1];
 
@@ -256,7 +300,7 @@ class MatchPlayCalculator
      */
     protected function calculateBestBallMatchResult(LeagueMatch $match)
     {
-        $holeRange = $match->holes === 'back_9' ? [10, 18] : [1, 9];
+        $holeRange = $match->holeRange();
         $startHole = $holeRange[0];
         $endHole = $holeRange[1];
 
@@ -307,7 +351,7 @@ class MatchPlayCalculator
      */
     protected function calculateTeam2BallMatchResult(LeagueMatch $match)
     {
-        $holeRange = $match->holes === 'back_9' ? [10, 18] : [1, 9];
+        $holeRange = $match->holeRange();
         $startHole = $holeRange[0];
         $endHole = $holeRange[1];
 

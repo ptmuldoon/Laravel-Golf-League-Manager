@@ -344,6 +344,9 @@
                 <a href="{{ route('admin.courses.teeboxes.manage', $course->id) }}" class="btn btn-edit" style="background: #17a2b8;">
                     🎯 Manage Teeboxes
                 </a>
+                <a href="{{ route('admin.courses.nines.manage', $course->id) }}" class="btn btn-edit" style="background: #6f42c1;">
+                    ⛳ Manage Nines
+                </a>
                 <button onclick="showDeleteModal()" class="btn btn-delete">
                     🗑️ Delete Course
                 </button>

@@ -37,8 +37,7 @@ trait ComputesIndividualMatchups
     private function getIndividualMatchupResult($mp): string
     {
         $match = $mp->match;
-        $holeStart = $match->holes === 'back_9' ? 10 : 1;
-        $holeEnd = $match->holes === 'back_9' ? 18 : 9;
+        [$holeStart, $holeEnd] = $match->holeRange();
         $useGross = ($match->score_mode === 'gross' || $match->scoring_type === 'scramble');
 
         // Find the opponent: same position index on the other team

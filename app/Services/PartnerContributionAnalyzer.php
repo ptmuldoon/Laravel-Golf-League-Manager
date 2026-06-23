@@ -50,7 +50,7 @@ class PartnerContributionAnalyzer
             $rating = (float) $ci->first()->rating;
             $useGross = ($m->score_mode === 'gross');
 
-            [$start, $end] = $m->holes === 'back_9' ? [10, 18] : [1, 9];
+            [$start, $end] = $m->holeRange();
 
             $homeMps = $m->matchPlayers->where('team_id', $m->home_team_id)->sortBy('position_in_pairing')->values();
             $awayMps = $m->matchPlayers->where('team_id', $m->away_team_id)->sortBy('position_in_pairing')->values();

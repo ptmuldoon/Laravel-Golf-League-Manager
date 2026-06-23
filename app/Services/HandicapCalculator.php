@@ -78,6 +78,24 @@ class HandicapCalculator
             return [];
         }
 
+        // Pre-rated rounds (multi-nine matches) already have correct adjusted
+        // gross / net computed against the played nines' holes at score entry.
+        // Use the stored values rather than re-deriving from a single course's
+        // hole table (which has no positional 1-18 rows for a multi-nine round).
+        if ($round->rating !== null && $round->slope !== null) {
+            $result = [];
+            foreach ($scores as $score) {
+                $adjusted = (int) ($score->adjusted_gross ?? $score->strokes);
+                $net = (int) ($score->net_score ?? $score->strokes);
+                $result[$score->hole_number] = [
+                    'adjusted_gross' => $adjusted,
+                    'net_score' => $net,
+                    'strokes_received' => (int) $score->strokes - $net,
+                ];
+            }
+            return $result;
+        }
+
         $courseInfo = $this->getCourseInfoForRound($round);
         if ($courseInfo->isEmpty()) {
             // No course info — return gross as adjusted, no net adjustment
@@ -205,6 +223,12 @@ class HandicapCalculator
      */
     public function getSlopeAndRating(Round $round): ?array
     {
+        // Pre-rated rounds (multi-nine matches) carry their effective combined
+        // rating/slope for the played nines.
+        if ($round->rating !== null && $round->slope !== null) {
+            return ['slope' => (float) $round->slope, 'rating' => (float) $round->rating];
+        }
+
         $courseInfo = $this->getCourseInfoForRound($round);
         if ($courseInfo->isEmpty()) {
             return null;

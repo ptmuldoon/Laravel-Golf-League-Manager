@@ -63,7 +63,7 @@
             <form action="{{ route('scorecardGenerator.print') }}" method="GET" target="_blank">
                 <div class="field">
                     <label for="golf_course_id">Golf Course</label>
-                    <select name="golf_course_id" id="golf_course_id" required onchange="populateTeeboxes()">
+                    <select name="golf_course_id" id="golf_course_id" required onchange="onCourseChange()">
                         <option value="">— Select a course —</option>
                         @foreach($courses as $course)
                             <option value="{{ $course->id }}" {{ old('golf_course_id') == $course->id ? 'selected' : '' }}>{{ $course->name }}</option>
@@ -78,12 +78,28 @@
                             <option value="">— Select course first —</option>
                         </select>
                     </div>
-                    <div class="field">
+                    <div class="field" id="holes-field">
                         <label for="holes">Holes</label>
                         <select name="holes" id="holes" required>
                             <option value="full_18" {{ old('holes') === 'full_18' ? 'selected' : '' }}>18 Holes</option>
                             <option value="front_9" {{ old('holes') === 'front_9' ? 'selected' : '' }}>Front 9</option>
                             <option value="back_9" {{ old('holes') === 'back_9' ? 'selected' : '' }}>Back 9</option>
+                        </select>
+                    </div>
+                </div>
+
+                {{-- Multi-nine facilities: choose which nines to play (shown only when the course has nines) --}}
+                <div class="row" id="nines-row" style="display: none;">
+                    <div class="field">
+                        <label for="front_nine_id">Front Nine</label>
+                        <select name="front_nine_id" id="front_nine_id">
+                            <option value="">— Select —</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="back_nine_id">Back Nine (optional)</label>
+                        <select name="back_nine_id" id="back_nine_id">
+                            <option value="">None (9 holes)</option>
                         </select>
                     </div>
                 </div>
@@ -112,7 +128,13 @@
 
     <script>
         var courseTeeboxes = @json($courseTeeboxes);
+        var courseNines = @json($courseNines);
         var oldTeebox = @json(old('teebox'));
+
+        function onCourseChange() {
+            populateTeeboxes();
+            populateNines();
+        }
 
         function populateTeeboxes() {
             var courseId = document.getElementById('golf_course_id').value;
@@ -132,9 +154,33 @@
             });
         }
 
+        // Multi-nine facilities: show the nine pickers and hide the front/back/18
+        // dropdown; single-course facilities do the reverse.
+        function populateNines() {
+            var courseId = document.getElementById('golf_course_id').value;
+            var nines = courseNines[courseId] || [];
+            var ninesRow = document.getElementById('nines-row');
+            var holesField = document.getElementById('holes-field');
+            var hasNines = nines.length > 0;
+
+            ninesRow.style.display = hasNines ? '' : 'none';
+            holesField.style.display = hasNines ? 'none' : '';
+            document.getElementById('holes').disabled = hasNines;
+
+            var front = document.getElementById('front_nine_id');
+            var back = document.getElementById('back_nine_id');
+            front.innerHTML = '<option value="">— Select —</option>';
+            back.innerHTML = '<option value="">None (9 holes)</option>';
+            nines.forEach(function (n) {
+                front.appendChild(new Option(n.name, n.id));
+                back.appendChild(new Option(n.name, n.id));
+            });
+            front.required = hasNines;
+        }
+
         // Restore on load if a course was preselected (validation bounce-back).
         if (document.getElementById('golf_course_id').value) {
-            populateTeeboxes();
+            onCourseChange();
         }
     </script>
 </body>
