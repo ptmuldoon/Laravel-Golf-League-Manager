@@ -244,6 +244,12 @@
                             <td>https://maps.google.com/?q=...</td>
                         </tr>
                         <tr>
+                            <td><code>nine</code></td>
+                            <td class="optional">No</td>
+                            <td>Nine name for a multi-nine facility (e.g. a 27-hole course with three nines). When set, the row belongs to that nine: holes are 1-9 and the rating/slope are the 9-hole values. Leave blank for a standard single course.</td>
+                            <td>Ocean</td>
+                        </tr>
+                        <tr>
                             <td><code>teebox</code></td>
                             <td class="required">Yes</td>
                             <td>Teebox name (Blue, White, etc.)</td>
@@ -252,7 +258,7 @@
                         <tr>
                             <td><code>hole_number</code></td>
                             <td class="required">Yes</td>
-                            <td>Hole number (1-18)</td>
+                            <td>Hole number (1-18 for a course, or 1-9 within each nine)</td>
                             <td>1</td>
                         </tr>
                         <tr>
@@ -276,7 +282,7 @@
                         <tr>
                             <td><code>rating</code></td>
                             <td class="required">Yes</td>
-                            <td>18-hole course rating (50-85)</td>
+                            <td>18-hole course rating (50-85). For a <code>nine</code> row, the 9-hole rating (20-45).</td>
                             <td>74.5</td>
                         </tr>
                         <tr>

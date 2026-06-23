@@ -61,36 +61,53 @@ class ImportController extends Controller
                     continue;
                 }
 
-                // Group by course name, then teebox
+                // Group by course name; multi-nine rows nest under their nine.
                 $courseName = $row['course_name'];
                 $teebox = $row['teebox'];
+                $nine = isset($row['nine']) ? trim($row['nine']) : '';
 
                 if (!isset($groupedData[$courseName])) {
                     $groupedData[$courseName] = [
                         'address' => $row['address'],
                         'address_link' => $row['address_link'] ?? null,
+                        'is_nines' => false,
                         'teeboxes' => [],
+                        'nines' => [],
                     ];
                 }
 
-                if (!isset($groupedData[$courseName]['teeboxes'][$teebox])) {
-                    $groupedData[$courseName]['teeboxes'][$teebox] = [
-                        'rating' => $row['rating'],
-                        'slope' => $row['slope'],
-                        'rating_9_front' => $row['rating_9_front'] ?? null,
-                        'rating_9_back' => $row['rating_9_back'] ?? null,
-                        'slope_9_front' => $row['slope_9_front'] ?? null,
-                        'slope_9_back' => $row['slope_9_back'] ?? null,
-                        'holes' => [],
-                    ];
-                }
-
-                $groupedData[$courseName]['teeboxes'][$teebox]['holes'][] = [
+                $holeData = [
                     'hole_number' => (int) $row['hole_number'],
                     'par' => (int) $row['par'],
                     'handicap' => isset($row['handicap']) && $row['handicap'] !== '' ? (int) $row['handicap'] : null,
                     'yardage' => isset($row['yardage']) && $row['yardage'] !== '' ? (int) $row['yardage'] : null,
                 ];
+
+                if ($nine !== '') {
+                    // Multi-nine facility: nine -> teebox -> holes (9-hole rating/slope).
+                    $groupedData[$courseName]['is_nines'] = true;
+                    if (!isset($groupedData[$courseName]['nines'][$nine][$teebox])) {
+                        $groupedData[$courseName]['nines'][$nine][$teebox] = [
+                            'rating' => $row['rating'],
+                            'slope' => $row['slope'],
+                            'holes' => [],
+                        ];
+                    }
+                    $groupedData[$courseName]['nines'][$nine][$teebox]['holes'][] = $holeData;
+                } else {
+                    if (!isset($groupedData[$courseName]['teeboxes'][$teebox])) {
+                        $groupedData[$courseName]['teeboxes'][$teebox] = [
+                            'rating' => $row['rating'],
+                            'slope' => $row['slope'],
+                            'rating_9_front' => $row['rating_9_front'] ?? null,
+                            'rating_9_back' => $row['rating_9_back'] ?? null,
+                            'slope_9_front' => $row['slope_9_front'] ?? null,
+                            'slope_9_back' => $row['slope_9_back'] ?? null,
+                            'holes' => [],
+                        ];
+                    }
+                    $groupedData[$courseName]['teeboxes'][$teebox]['holes'][] = $holeData;
+                }
             }
 
             if (!empty($errors)) {
@@ -99,16 +116,28 @@ class ImportController extends Controller
 
             // Validate hole sequences
             foreach ($groupedData as $courseName => $courseData) {
-                foreach ($courseData['teeboxes'] as $teebox => $teeboxData) {
-                    $holeNumbers = array_column($teeboxData['holes'], 'hole_number');
-                    sort($holeNumbers);
-
-                    $expected = range(1, count($holeNumbers));
-                    if ($holeNumbers !== $expected && $holeNumbers !== range(1, 9) && $holeNumbers !== range(1, 18)) {
-                        if (!isset($errors[$courseName])) {
-                            $errors[$courseName] = [];
+                if ($courseData['is_nines']) {
+                    foreach ($courseData['nines'] as $nineName => $teeboxes) {
+                        foreach ($teeboxes as $teebox => $teeboxData) {
+                            $holeNumbers = array_column($teeboxData['holes'], 'hole_number');
+                            sort($holeNumbers);
+                            if ($holeNumbers !== range(1, 9)) {
+                                $errors[$courseName][] = "Nine '$nineName' ($teebox): each nine must have holes 1-9.";
+                            }
                         }
-                        $errors[$courseName][] = "Teebox '$teebox': Invalid hole sequence. Must be 1-9 or 1-18.";
+                    }
+                } else {
+                    foreach ($courseData['teeboxes'] as $teebox => $teeboxData) {
+                        $holeNumbers = array_column($teeboxData['holes'], 'hole_number');
+                        sort($holeNumbers);
+
+                        $expected = range(1, count($holeNumbers));
+                        if ($holeNumbers !== $expected && $holeNumbers !== range(1, 9) && $holeNumbers !== range(1, 18)) {
+                            if (!isset($errors[$courseName])) {
+                                $errors[$courseName] = [];
+                            }
+                            $errors[$courseName][] = "Teebox '$teebox': Invalid hole sequence. Must be 1-9 or 1-18.";
+                        }
                     }
                 }
             }
@@ -121,8 +150,9 @@ class ImportController extends Controller
             $courseCount = 0;
             $teeboxCount = 0;
             $holeCount = 0;
+            $nineCount = 0;
 
-            DB::transaction(function () use ($groupedData, &$courseCount, &$teeboxCount, &$holeCount) {
+            DB::transaction(function () use ($groupedData, &$courseCount, &$teeboxCount, &$holeCount, &$nineCount) {
                 foreach ($groupedData as $courseName => $courseData) {
                     // Create or update course
                     $course = GolfCourse::updateOrCreate(
@@ -134,6 +164,46 @@ class ImportController extends Controller
                     );
 
                     $courseCount++;
+
+                    if ($courseData['is_nines']) {
+                        // Replace this facility's existing nines and their holes.
+                        foreach ($course->nines()->get() as $existing) {
+                            CourseInfo::where('course_nine_id', $existing->id)->delete();
+                        }
+                        $course->nines()->delete();
+
+                        $order = 1;
+                        foreach ($courseData['nines'] as $nineName => $teeboxes) {
+                            $nine = $course->nines()->create([
+                                'name' => $nineName,
+                                'display_order' => $order++,
+                            ]);
+                            $nineCount++;
+
+                            foreach ($teeboxes as $teeboxName => $teeboxData) {
+                                $teeboxCount++;
+                                $holesData = [];
+                                foreach ($teeboxData['holes'] as $hole) {
+                                    $holesData[] = [
+                                        'golf_course_id' => $course->id,
+                                        'course_nine_id' => $nine->id,
+                                        'teebox' => $teeboxName,
+                                        'hole_number' => $hole['hole_number'],
+                                        'par' => $hole['par'],
+                                        'handicap' => $hole['handicap'] ?? null,
+                                        'yardage' => $hole['yardage'] ?? null,
+                                        'rating' => $teeboxData['rating'],
+                                        'slope' => $teeboxData['slope'],
+                                        'created_at' => now(),
+                                        'updated_at' => now(),
+                                    ];
+                                    $holeCount++;
+                                }
+                                CourseInfo::insert($holesData);
+                            }
+                        }
+                        continue;
+                    }
 
                     foreach ($courseData['teeboxes'] as $teeboxName => $teeboxData) {
                         // Delete existing course info for this teebox
@@ -170,8 +240,9 @@ class ImportController extends Controller
                 }
             });
 
+            $nineMsg = $nineCount > 0 ? " ($nineCount nines)" : '';
             return redirect()->route('admin.courses.index')
-                ->with('success', "Imported $courseCount courses, $teeboxCount teeboxes, $holeCount holes total.");
+                ->with('success', "Imported $courseCount courses, $teeboxCount teeboxes{$nineMsg}, $holeCount holes total.");
 
         } catch (\Exception $e) {
             return back()->withErrors(['csv_file' => 'Error processing CSV: ' . $e->getMessage()]);
@@ -446,20 +517,25 @@ class ImportController extends Controller
     {
         $errors = [];
 
+        // Rows tagged with a nine are one of a multi-nine facility: the
+        // rating/slope are 9-hole values and holes are numbered 1-9.
+        $isNine = isset($row['nine']) && trim($row['nine']) !== '';
+
         $validator = Validator::make($row, [
             'course_name' => 'required|string|max:255',
             'address' => 'required|string',
             'address_link' => 'nullable|url',
+            'nine' => 'nullable|string|max:50',
             'teebox' => 'required|string|max:50',
-            'hole_number' => 'required|integer|min:1|max:18',
+            'hole_number' => $isNine ? 'required|integer|min:1|max:9' : 'required|integer|min:1|max:18',
             'par' => 'required|integer|min:3|max:6',
-            'rating' => 'required|numeric|min:50|max:85',
+            'rating' => $isNine ? 'required|numeric|min:20|max:45' : 'required|numeric|min:50|max:85',
             'slope' => 'required|numeric|min:55|max:155',
             'rating_9_front' => 'nullable|numeric|min:20|max:45',
             'rating_9_back' => 'nullable|numeric|min:20|max:45',
             'slope_9_front' => 'nullable|numeric|min:55|max:155',
             'slope_9_back' => 'nullable|numeric|min:55|max:155',
-            'handicap' => 'nullable|integer|min:1|max:18',
+            'handicap' => $isNine ? 'nullable|integer|min:1|max:9' : 'nullable|integer|min:1|max:18',
             'yardage' => 'nullable|integer|min:50|max:700',
         ]);
 
