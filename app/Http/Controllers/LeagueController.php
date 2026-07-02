@@ -2884,7 +2884,15 @@ class LeagueController extends Controller
             $currentHandicap = $player->currentHandicap();
             $currentHI = $currentHandicap ? (float) $currentHandicap->handicap_index : null;
 
-            $rounds = $player->rounds()->with(['golfCourse', 'scores'])->orderBy('played_at')->get()->map(function ($round) use ($calculator, $currentHI) {
+            $rounds = $player->rounds()->with(['golfCourse', 'scores', 'matchPlayer.match'])->orderBy('played_at')->get()
+                ->reject(function ($round) {
+                    // Exclude scramble rounds from player history — the recorded
+                    // scores are the team's scramble scores, not the player's own
+                    // play, and they're already excluded from handicap math.
+                    return $round->matchPlayer && $round->matchPlayer->match
+                        && $round->matchPlayer->match->scoring_type === 'scramble';
+                })
+                ->map(function ($round) use ($calculator, $currentHI) {
                 $round->total_score = $round->scores->sum('strokes');
 
                 $hasNetScores = $round->scores->contains(fn($s) => $s->net_score !== null);
