@@ -46,7 +46,14 @@ class PlayerController extends Controller
         $calculator = app(HandicapCalculator::class);
         $currentHI = $currentHandicap ? (float) $currentHandicap->handicap_index : null;
 
-        $rounds = $query->with(['golfCourse', 'scores'])->get()->map(function ($round) use ($calculator, $currentHI) {
+        $rounds = $query->with(['golfCourse', 'scores', 'matchPlayer.match'])->get()
+            ->reject(function ($round) {
+                // Exclude scramble rounds — the scores are team scramble scores,
+                // not the player's own play (already excluded from handicaps).
+                return $round->matchPlayer && $round->matchPlayer->match
+                    && $round->matchPlayer->match->scoring_type === 'scramble';
+            })
+            ->map(function ($round) use ($calculator, $currentHI) {
             $round->total_score = $round->scores->sum('strokes');
 
             $hasNetScores = $round->scores->contains(fn($s) => $s->net_score !== null);
