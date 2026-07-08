@@ -411,8 +411,8 @@
                         </div>
                     </div>
                     <div class="date-filters">
-                        <a href="{{ route('players.show', ['id' => $player->id, 'filter' => '7days']) }}"
-                           class="filter-btn {{ $filter == '7days' ? 'active' : '' }}">7 Days</a>
+                        <a href="{{ route('players.show', ['id' => $player->id, 'filter' => '20rounds']) }}"
+                           class="filter-btn {{ $filter == '20rounds' ? 'active' : '' }}">Last 20 Rounds</a>
                         <a href="{{ route('players.show', ['id' => $player->id, 'filter' => '30days']) }}"
                            class="filter-btn {{ $filter == '30days' ? 'active' : '' }}">30 Days</a>
                         <a href="{{ route('players.show', ['id' => $player->id, 'filter' => '90days']) }}"

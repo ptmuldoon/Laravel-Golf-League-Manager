@@ -25,12 +25,10 @@ class PlayerController extends Controller
         // Get date filter (default to 'all')
         $filter = $request->get('filter', 'all');
 
-        // Apply date filter
+        // Apply date filter ('20rounds' is a count filter applied after the
+        // scramble-round exclusion below, not a date range.)
         $query = $player->rounds();
         switch ($filter) {
-            case '7days':
-                $query->where('played_at', '>=', now()->subDays(7));
-                break;
             case '30days':
                 $query->where('played_at', '>=', now()->subDays(30));
                 break;
@@ -98,6 +96,11 @@ class PlayerController extends Controller
             return $round;
         });
 
+        // "Last 20 Rounds" — keep the 20 most recent (after scramble exclusion).
+        if ($filter === '20rounds') {
+            $rounds = $rounds->sortByDesc('played_at')->take(20)->values();
+        }
+
         // Prepare chart data (sorted by date)
         $chartData = $rounds->sortBy('played_at')->map(function ($round) {
             return [
@@ -108,12 +111,10 @@ class PlayerController extends Controller
             ];
         })->values();
 
-        // Prepare handicap history chart data (filtered by same date range)
+        // Prepare handicap history chart data (filtered by same date range).
+        // '20rounds' has no date case, so it shows full handicap history.
         $handicapQuery = $player->handicapHistory()->orderBy('calculation_date');
         switch ($filter) {
-            case '7days':
-                $handicapQuery->where('calculation_date', '>=', now()->subDays(7));
-                break;
             case '30days':
                 $handicapQuery->where('calculation_date', '>=', now()->subDays(30));
                 break;
