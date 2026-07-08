@@ -1,3 +1,14 @@
+<style>
+    /* Scoring Distribution: frozen header + vertical scroll + sortable columns */
+    .hs-scroll { max-height: 520px; overflow-y: auto; }
+    .hs-scroll thead th {
+        position: sticky; top: 0; z-index: 2;
+        background: var(--primary-light);
+    }
+    .hs-scroll thead th.hs-sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+    .hs-scroll thead th.hs-sortable:hover { filter: brightness(0.96); }
+    .hs-arrow { font-size: 0.8em; }
+</style>
 <div class="content-section">
     <h2 class="section-title" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
         <span>Scoring Distribution</span>
@@ -14,7 +25,7 @@
         <div style="text-align: center; padding: 40px; color: #888;">No completed matches with scores yet.</div>
     @else
         {{-- Gross Table --}}
-        <div id="hs-table-gross-{{ $league->id }}" class="scrollable-table">
+        <div id="hs-table-gross-{{ $league->id }}" class="scrollable-table hs-scroll">
             <table>
                 <thead>
                     <tr>
@@ -50,7 +61,7 @@
         </div>
 
         {{-- Net Table --}}
-        <div id="hs-table-net-{{ $league->id }}" class="scrollable-table" style="display: none;">
+        <div id="hs-table-net-{{ $league->id }}" class="scrollable-table hs-scroll" style="display: none;">
             <table>
                 <thead>
                     <tr>
@@ -106,4 +117,54 @@
         @include('leagues.hole-stats-by-hole')
         </div>
     </div>
+
+    <script>
+        (function () {
+            // Make every Scoring Distribution column sortable (both Gross/Net tables).
+            var scope = document.getElementById('scoring-dist-body-{{ $league->id }}');
+            if (!scope) return;
+            scope.querySelectorAll('.hs-scroll table thead th').forEach(function (th) {
+                th.classList.add('hs-sortable');
+                th.onclick = function () { sortHoleStatsColumn(th); };
+            });
+        })();
+
+        function sortHoleStatsColumn(th) {
+            var table = th.closest('table');
+            var tbody = table.querySelector('tbody');
+            var headers = th.parentNode.children;
+            var idx = Array.prototype.indexOf.call(headers, th);
+            var dir = th.getAttribute('data-hs-sort') === 'asc' ? 'desc' : 'asc';
+
+            Array.prototype.forEach.call(headers, function (h) {
+                h.removeAttribute('data-hs-sort');
+                var a = h.querySelector('.hs-arrow');
+                if (a) a.remove();
+            });
+            th.setAttribute('data-hs-sort', dir);
+            var arrow = document.createElement('span');
+            arrow.className = 'hs-arrow';
+            arrow.textContent = dir === 'asc' ? ' ▲' : ' ▼';
+            th.appendChild(arrow);
+
+            var val = function (cell) {
+                var t = (cell.textContent || '').trim();
+                if (t === '' || t === '-') return { n: 0, s: '' };
+                var n = parseFloat(t.replace(/[^0-9.\-]/g, ''));
+                return { n: isNaN(n) ? null : n, s: t.toLowerCase() };
+            };
+
+            var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+            rows.sort(function (a, b) {
+                var A = val(a.children[idx]), B = val(b.children[idx]), c;
+                if (A.n !== null && B.n !== null) c = A.n - B.n;
+                else c = A.s < B.s ? -1 : (A.s > B.s ? 1 : 0);
+                return dir === 'asc' ? c : -c;
+            });
+            rows.forEach(function (r, i) {
+                tbody.appendChild(r);
+                if (r.children[0]) r.children[0].textContent = i + 1; // renumber the # column
+            });
+        }
+    </script>
 @endif
