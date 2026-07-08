@@ -2762,12 +2762,15 @@ class LeagueController extends Controller
 
         $players = $league->players->sortBy('name')->values();
 
-        // Get all completed matches with scores for this league
+        // Get all completed matches with scores for this league. Exclude
+        // scramble rounds — the recorded scores are team scores, not the
+        // player's own play, and they distort per-player stats.
         $completedMatches = LeagueMatch::where('league_id', $league->id)
             ->where('status', 'completed')
             ->with(['matchPlayers.scores', 'matchPlayers.player', 'matchPlayers.substitutePlayer', 'golfCourse.courseInfo'])
             ->orderBy('week_number')
-            ->get();
+            ->get()
+            ->reject(fn($m) => $m->scoring_type === 'scramble');
 
         // Build per-player, per-week score data
         $playerWeekData = [];
@@ -3048,8 +3051,13 @@ class LeagueController extends Controller
             'avgByHole' => [],
         ];
 
+        // Exclude scramble rounds — their scores are team scores, not the
+        // player's own play, and skew the scoring distribution.
         $completedMatches = LeagueMatch::where('league_id', $league->id)
             ->where('status', 'completed')
+            ->where(function ($q) {
+                $q->where('scoring_type', '!=', 'scramble')->orWhereNull('scoring_type');
+            })
             ->pluck('id', 'id');
 
         if ($completedMatches->isEmpty()) {
