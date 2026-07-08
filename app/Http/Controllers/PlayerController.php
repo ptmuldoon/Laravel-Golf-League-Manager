@@ -111,8 +111,7 @@ class PlayerController extends Controller
             ];
         })->values();
 
-        // Prepare handicap history chart data (filtered by same date range).
-        // '20rounds' has no date case, so it shows full handicap history.
+        // Prepare handicap history chart data (aligned to the same filter).
         $handicapQuery = $player->handicapHistory()->orderBy('calculation_date');
         switch ($filter) {
             case '30days':
@@ -124,6 +123,10 @@ class PlayerController extends Controller
             case 'year':
                 $handicapQuery->where('calculation_date', '>=', now()->subYear());
                 break;
+        }
+        // 'Last 20 Rounds': clip the handicap trend to the span of those rounds.
+        if ($filter === '20rounds' && $rounds->isNotEmpty()) {
+            $handicapQuery->where('calculation_date', '>=', $rounds->min('played_at'));
         }
         $handicapChartData = $handicapQuery->get()->map(function ($h) {
             $diffs = $h->score_differentials;
