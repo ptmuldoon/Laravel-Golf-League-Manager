@@ -684,6 +684,9 @@
 
         function switchChart(mode) {
             currentMode = mode;
+            // Remember the choice so it survives the full-page reload when a
+            // time-filter button is clicked.
+            try { localStorage.setItem('playerChartMode', mode); } catch (e) {}
 
             document.querySelectorAll('.toggle-btn[data-mode]').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.mode === mode);
@@ -708,8 +711,15 @@
             renderChart();
         }
 
-        // Initialize
-        renderChart();
+        // Initialize — restore the last-viewed chart (Scores/Handicap) so
+        // changing a time filter keeps you on the same chart.
+        let savedChartMode = 'scores';
+        try { savedChartMode = localStorage.getItem('playerChartMode') || 'scores'; } catch (e) {}
+        if (savedChartMode === 'handicap') {
+            switchChart('handicap');
+        } else {
+            renderChart();
+        }
     </script>
 </body>
 </html>
